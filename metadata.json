@@ -1,0 +1,6 @@
+{
+  "name": "سیستم جامع پخش مویرگی آب و نوشیدنی گوارانو",
+  "description": "سامانه یکپارچه فروش B2B، مدیریت ویزیتورها، انبارداری، توزیع و حسابداری پخش آب و نوشیدنی",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
