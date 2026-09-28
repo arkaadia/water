@@ -1,0 +1,11 @@
+services:
+  gowarano-b2b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gowarano_water_b2b
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
