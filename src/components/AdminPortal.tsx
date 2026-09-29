@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Product, PricingTier } from '../types';
+import { AdminExecutiveDashboard } from './AdminExecutiveDashboard';
 import {
   Shield,
   BarChart3,
@@ -257,70 +258,9 @@ export const AdminPortal: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab 1: Analytics Dashboard (Section 20 & 21 of brief) */}
+      {/* Tab 1: Executive Analytics & BI Dashboard */}
       {activeTab === 'analytics' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Sales by Visitor Breakdown */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-              <h3 className="font-black text-sm text-slate-900 flex items-center justify-between">
-                <span>عملکرد فروش به تفکیک ویزیتورها</span>
-                <span className="text-xs text-slate-400 font-normal">ماه جاری</span>
-              </h3>
-
-              <div className="space-y-3">
-                {visitorBreakdown.map(({ visitor: v, sales, ordersCount }) => {
-                  const targetPct = Math.min(100, Math.round((v.currentMonthSales / v.monthlyTarget) * 100));
-                  return (
-                    <div key={v.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/50 space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <div>
-                          <strong className="text-slate-900">{v.name}</strong>
-                          <span className="text-slate-500 text-[11px] mr-1 font-mono">({v.id})</span>
-                        </div>
-                        <div className="font-mono font-bold text-slate-900">
-                          {sales.toLocaleString('fa-IR')} تومان ({ordersCount} سفارش)
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-[11px] text-slate-500">
-                        <span>تحقق تارگت: {targetPct}٪</span>
-                        <span>پورسانت: {v.totalCommissionEarned.toLocaleString('fa-IR')} ت</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full" style={{ width: `${targetPct}%` }}></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Sales by Region Breakdown */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-              <h3 className="font-black text-sm text-slate-900 flex items-center justify-between">
-                <span>توزیع فروش بر اساس مناطق تحت پوشش</span>
-                <span className="text-xs text-slate-400 font-normal">شهریار، قدس، ملارد، تهرانسر و...</span>
-              </h3>
-
-              <div className="space-y-3">
-                {regionBreakdown.map(({ zone, sales, ordersCount }) => (
-                  <div key={zone.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/50 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="font-bold text-slate-900">{zone.name}</div>
-                      <div className="text-[11px] text-slate-500">
-                        {zone.shippingFee === 0 ? 'ارسال رایگان' : `کرایه: ${zone.shippingFee.toLocaleString('fa-IR')} ت`}
-                      </div>
-                    </div>
-                    <div className="text-left font-mono">
-                      <div className="font-bold text-cyan-800">{sales.toLocaleString('fa-IR')} تومان</div>
-                      <div className="text-[10px] text-slate-400">{ordersCount} سفارش تحویلی</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <AdminExecutiveDashboard />
       )}
 
       {/* Tab 2: Pricing Engine (Section 18 of brief: قیمت عمومی، عمده، پلکانی، پورسانت) */}
