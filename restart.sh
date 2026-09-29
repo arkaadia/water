@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# اسکریپت راه‌اندازی مجدد سامانه گوارانو B2B
+# WATER Business Management Platform - Restart Script
 # ==============================================================================
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$DIR"
 
-if command -v systemctl &>/dev/null && systemctl list-unit-files | grep -q "water-b2b.service"; then
-  echo -e "\033[0;33mراه‌اندازی مجدد سرویس water-b2b...\033[0m"
-  sudo systemctl restart water-b2b
-  sudo systemctl status water-b2b --no-pager
-else
-  "$DIR/stop.sh"
+set -eo pipefail
+
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$APP_DIR"
+
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}Restarting WATER...${NC}"
+
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q "water.service"; then
+  if [ "$EUID" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+    sudo systemctl restart water.service
+  else
+    systemctl restart water.service
+  fi
   sleep 1
-  "$DIR/start.sh"
+  "$APP_DIR/status.sh"
+else
+  "$APP_DIR/stop.sh"
+  sleep 1
+  "$APP_DIR/start.sh"
 fi

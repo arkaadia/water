@@ -52,15 +52,19 @@ sudo ./install.sh
 
 ---
 
-### ⚙️ اسکریپت نصب چه کارهایی انجام می‌دهد؟
-1. **بررسی پکیج‌منیجر و قفل نبودن apt/dpkg** و رفع خودکار تداخل‌ها.
-2. **بررسی و نصب خودکار Node.js 20 LTS** از مخزن رسمی NodeSource در صورت نیاز.
-3. **بررسی رم سرور و ایجاد خودکار Swap** برای جلوگیری از کمبود حافظه در سرورهای با رم ۱ یا ۲ گیگابایت.
-4. **پرسش پورت دلخواه** برای پنل (پیش‌فرض: `3000`).
-5. **نصب وابستگی‌ها (`npm install`) و بیلد کامل پروداکشن (`npm run build`)**.
-6. **پیکربندی و فعال‌سازی سرویس دائمی لینوکس (`water-b2b.service`)** با امکان راه‌اندازی خودکار پس از ریبوت سرور.
-7. **ایجاد اسکریپت‌های اختصاصی مدیریت سریع** (`start.sh`, `stop.sh`, `restart.sh`, `status.sh`, `uninstall.sh`).
-8. **تنظیم خودکار فایروال (UFW / Firewalld)** جهت باز کردن پورت انتخابی.
+### ⚙️ قابلیت‌های سیستم نصب تعاملی WATER
+1. **نمایش بنر اسکی اختصاصی WATER** در شروع فرآیند نصب.
+2. **پرسش تعاملی مقادیر پیکربندی با مقادیر پیش‌فرض هوشمند (با زدن کلید ENTER)**:
+   - مسیر نصب برنامه (پیش‌فرض: `/opt/water`)
+   - پورت وب‌سرور (پیش‌فرض: `3000`)
+   - هاست و آدرس شبکه (پیش‌فرض: `0.0.0.0`)
+   - محیط اجرا (`production` یا `development`)
+   - راه‌اندازی خودکار پس از پایان نصب (`Yes/No`)
+3. **اعتبارسنجی دقیق پورت TCP و بررسی در حال استفاده بودن آن** (همراه با نمایش پردازش اشغال‌کننده).
+4. **نمایش خلاصه تنظیمات (Installation Summary) و امکان تایید یا انصراف**.
+5. **نصب وابستگی‌ها با `bun` و بیلد پروداکشن (`bun run build`) بدون دستکاری یا استفاده از `--force`**.
+6. **پیکربندی سرویس سیستمی (`water.service`) یا مدیریت پردازش مستقیم در پس‌زمینه**.
+7. **ایجاد اسکریپت‌های اختصاصی مدیریت استاندارد** (`start.sh`, `stop.sh`, `restart.sh`, `status.sh`, `uninstall.sh`).
 
 ---
 
@@ -82,17 +86,17 @@ sudo ./install.sh
 ./start.sh
 
 # مشاهده لاگ‌های زنده
-sudo journalctl -u water-b2b -f
+sudo journalctl -u water -f
 
-# حذف کامل سرویس از سیستم‌عامل
+# حذف ایمن سامانه
 sudo ./uninstall.sh
 ```
 
-همچنین می‌توانید مستقیماً از دستورات استاندارد لینوکس استفاده فرمایید:
+همچنین در صورت استفاده از systemd:
 ```bash
-sudo systemctl status water-b2b
-sudo systemctl restart water-b2b
-sudo systemctl stop water-b2b
+sudo systemctl status water
+sudo systemctl restart water
+sudo systemctl stop water
 ```
 
 ---
@@ -170,14 +174,18 @@ chmod +x install.sh
 sudo ./install.sh
 ```
 
-During installation, the script will:
-- Check root permissions and unlock `dpkg`/`apt` if needed.
-- Install Node.js 20 LTS automatically.
-- Allocate swap memory if running on a low-RAM VPS.
-- Prompt for the desired port (default: `3000`).
-- Install dependencies and build production assets.
-- Create and enable the systemd daemon (`water-b2b.service`).
-- Open the port in your Linux firewall (UFW / Firewalld).
+During installation, the interactive installer wizard will:
+- Display the clean **WATER ASCII Banner**.
+- Prompt for configurable options with sensible defaults (press ENTER to accept):
+  - **Installation directory** (default: `/opt/water`)
+  - **Web port** (default: `3000`, with TCP validation & port availability checks)
+  - **Host / bind address** (default: `0.0.0.0`)
+  - **Environment** (default: `production`)
+  - **Auto start** (default: `Yes`)
+- Display an **Installation Summary** for confirmation before making changes.
+- Automatically resolve dependencies using `bun` (with clean fallback to `npm` without `--force` or `--legacy-peer-deps`).
+- Execute a production build (`bun run build` / `npm run build`).
+- Set up process management (`water.service` via systemd or background daemon).
 
 ---
 
@@ -186,24 +194,24 @@ During installation, the script will:
 ```bash
 # Check status
 ./status.sh
-# or: sudo systemctl status water-b2b
+# or: sudo systemctl status water
 
 # Restart server
 ./restart.sh
-# or: sudo systemctl restart water-b2b
+# or: sudo systemctl restart water
 
 # Stop server
 ./stop.sh
-# or: sudo systemctl stop water-b2b
+# or: sudo systemctl stop water
 
 # Start server
 ./start.sh
-# or: sudo systemctl start water-b2b
+# or: sudo systemctl start water
 
-# Live logs
-sudo journalctl -u water-b2b -f
+# Live logs (systemd)
+sudo journalctl -u water -f
 
-# Complete uninstall
+# Complete uninstall wizard
 sudo ./uninstall.sh
 ```
 
