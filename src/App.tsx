@@ -18,7 +18,6 @@ import { RegionalLandingPages } from './components/RegionalLandingPages';
 import { PriceFeeds } from './components/PriceFeeds';
 import { CartDrawer } from './components/CartDrawer';
 import { InvoiceModal } from './components/InvoiceModal';
-import { RepoUpdateIndicator } from './components/RepoUpdateIndicator';
 import { Customer, Order } from './types';
 import {
   Store,
@@ -232,9 +231,6 @@ function MainAppContent() {
           <span>مدیریت</span>
         </button>
       </div>
-
-      {/* Floating Repository Update Button (Left Side) */}
-      <RepoUpdateIndicator />
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 text-xs py-8 border-t border-slate-800 hidden md:block">

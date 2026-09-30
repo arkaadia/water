@@ -21,7 +21,11 @@ interface GitHubCommitInfo {
   url: string;
 }
 
-export const RepoUpdateIndicator: React.FC = () => {
+interface RepoUpdateIndicatorProps {
+  variant?: 'header' | 'floating';
+}
+
+export const RepoUpdateIndicator: React.FC<RepoUpdateIndicatorProps> = ({ variant = 'header' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [latestCommit, setLatestCommit] = useState<GitHubCommitInfo | null>(null);
@@ -103,39 +107,45 @@ export const RepoUpdateIndicator: React.FC = () => {
     }, 1200);
   };
 
+  const buttonContent = (
+    <button
+      onClick={() => {
+        setIsOpen(true);
+        checkForUpdates(true);
+      }}
+      className={`group relative flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl border border-indigo-500/40 hover:border-indigo-400 transition-all shadow-md active:scale-95 ${
+        variant === 'header'
+          ? 'px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs'
+          : 'px-3.5 py-2.5 text-xs shadow-2xl rounded-2xl'
+      }`}
+      title="بررسی و دریافت آخرین نسخه از ریپازیتوری گیت‌هاب"
+    >
+      {/* Blinking / Pulsing Beacon */}
+      <span className="relative flex h-3 w-3">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
+        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-xs shadow-emerald-400"></span>
+      </span>
+
+      <div className="flex items-center gap-1.5 text-xs font-black text-white">
+        <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isLoading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+        <span className="hidden sm:inline">آپدیت مخزن</span>
+      </div>
+
+      <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/30 font-mono animate-pulse">
+        {latestCommit ? latestCommit.sha : 'NEW'}
+      </span>
+    </button>
+  );
+
   return (
     <>
-      {/* Floating Blinking Update Button on Left Side */}
-      <div className="fixed bottom-5 left-5 z-40 flex items-center">
-        <button
-          onClick={() => {
-            setIsOpen(true);
-            checkForUpdates(true);
-          }}
-          className="group relative flex items-center gap-2.5 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2.5 rounded-2xl shadow-2xl border border-indigo-500/40 hover:border-indigo-400 transition-all transform hover:scale-105 active:scale-95"
-          title="بررسی و دریافت آخرین نسخه از ریپازیتوری گیت‌هاب"
-        >
-          {/* Blinking / Pulsing Beacon */}
-          <span className="relative flex h-3.5 w-3.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
-            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 shadow-xs shadow-emerald-400"></span>
-          </span>
-
-          <div className="text-right">
-            <div className="flex items-center gap-1.5 text-xs font-black text-white">
-              <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isLoading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              <span>آپدیت مخزن</span>
-            </div>
-            <span className="text-[10px] text-slate-300 block font-mono">
-              {latestCommit ? latestCommit.sha : 'GitHub Sync'}
-            </span>
-          </div>
-
-          <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/30 font-mono animate-pulse">
-            NEW
-          </span>
-        </button>
-      </div>
+      {variant === 'floating' ? (
+        <div className="fixed bottom-5 left-5 z-40 flex items-center">
+          {buttonContent}
+        </div>
+      ) : (
+        buttonContent
+      )}
 
       {/* Update Drawer / Modal */}
       {isOpen && (

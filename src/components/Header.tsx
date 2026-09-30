@@ -20,6 +20,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { RepoUpdateIndicator } from './RepoUpdateIndicator';
 
 interface HeaderProps {
   onOpenCart: () => void;
@@ -271,6 +272,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Actions: Portal quick buttons & Cart */}
           <div className="flex items-center gap-2">
+            {/* Blinking Beacon Repo Update Indicator */}
+            <RepoUpdateIndicator variant="header" />
+
             {/* Direct role panel button */}
             <button
               onClick={() => {
