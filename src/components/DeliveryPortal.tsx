@@ -13,7 +13,8 @@ import {
   DollarSign,
   Printer,
   ChevronLeft,
-  Navigation
+  Navigation,
+  MessageSquare
 } from 'lucide-react';
 
 interface DeliveryPortalProps {
@@ -26,8 +27,19 @@ export const DeliveryPortal: React.FC<DeliveryPortalProps> = ({ onOpenInvoice })
     drivers,
     deliveryZones,
     updateOrderStatus,
-    assignDriverToOrder
+    assignDriverToOrder,
+    sendOrderSms
   } = useApp();
+
+  const [smsSentToast, setSmsSentToast] = useState<string | null>(null);
+
+  const handleSendSms = async (orderId: string, orderNumber: string) => {
+    const success = await sendOrderSms(orderId, 'order_shipped');
+    if (success) {
+      setSmsSentToast(orderNumber);
+      setTimeout(() => setSmsSentToast(null), 3500);
+    }
+  };
 
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('active');
@@ -135,6 +147,19 @@ export const DeliveryPortal: React.FC<DeliveryPortalProps> = ({ onOpenInvoice })
         </div>
       </div>
 
+      {/* Toast */}
+      {smsSentToast && (
+        <div className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-md flex items-center justify-between text-xs font-bold">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-indigo-200" />
+            <span>پیامک وضعیت بار و لینک فاکتور برای سفارش {smsSentToast} به مشتری ارسال شد.</span>
+          </div>
+          <button onClick={() => setSmsSentToast(null)} className="text-white hover:text-indigo-200 text-xs">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Orders Dispatch Cards Grid (Section 14: بهینه‌شده برای کارکرد راننده روی موبایل) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {deliveryOrders.length === 0 ? (
@@ -221,12 +246,22 @@ export const DeliveryPortal: React.FC<DeliveryPortalProps> = ({ onOpenInvoice })
                   </strong>
                 </span>
 
-                <button
-                  onClick={() => onOpenInvoice(order)}
-                  className="text-cyan-700 hover:underline font-bold text-[11px]"
-                >
-                  مشاهده فاکتور
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSendSms(order.id, order.orderNumber)}
+                    className="text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 transition"
+                    title="ارسال پیامک وضعیت بارگیری و لینک فاکتور به مشتری"
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    <span>پیامک وضعیت بار</span>
+                  </button>
+                  <button
+                    onClick={() => onOpenInvoice(order)}
+                    className="text-cyan-700 hover:underline font-bold text-[11px]"
+                  >
+                    مشاهده فاکتور
+                  </button>
+                </div>
               </div>
 
               {/* Driver Assignment & Step-wise dispatch buttons (Section 14 in brief) */}

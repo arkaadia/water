@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Order } from '../types';
-import { Printer, Download, X, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { Printer, Download, X, CheckCircle2, ShieldCheck, MessageSquare } from 'lucide-react';
 
 interface InvoiceModalProps {
   order: Order | null;
@@ -8,10 +9,21 @@ interface InvoiceModalProps {
 }
 
 export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) => {
+  const { sendOrderSms } = useApp();
+  const [smsSent, setSmsSent] = useState(false);
+
   if (!order) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSendInvoiceSms = async () => {
+    const success = await sendOrderSms(order.id, 'order_shipped');
+    if (success) {
+      setSmsSent(true);
+      setTimeout(() => setSmsSent(false), 3500);
+    }
   };
 
   return (
@@ -26,6 +38,17 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleSendInvoiceSms}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-xs ${
+                smsSent
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              {smsSent ? <CheckCircle2 className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
+              <span>{smsSent ? 'پیامک ارسال شد ✓' : 'ارسال پیامک فاکتور به مشتری'}</span>
+            </button>
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold transition shadow-xs"

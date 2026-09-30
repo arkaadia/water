@@ -53,18 +53,27 @@ sudo ./install.sh
 ---
 
 ### ⚙️ قابلیت‌های سیستم نصب تعاملی WATER
-1. **نمایش بنر اسکی اختصاصی WATER** در شروع فرآیند نصب.
-2. **پرسش تعاملی مقادیر پیکربندی با مقادیر پیش‌فرض هوشمند (با زدن کلید ENTER)**:
+1. **نمایش بنر اسکی اختصاصی WATER** در آغاز نصب.
+2. **پرسش‌های تعاملی با مقادیر پیش‌فرض هوشمند (تایید با فشردن ENTER)**:
    - مسیر نصب برنامه (پیش‌فرض: `/opt/water`)
    - پورت وب‌سرور (پیش‌فرض: `3000`)
-   - هاست و آدرس شبکه (پیش‌فرض: `0.0.0.0`)
+   - آدرس شبکه و هاست (پیش‌فرض: `0.0.0.0`)
    - محیط اجرا (`production` یا `development`)
-   - راه‌اندازی خودکار پس از پایان نصب (`Yes/No`)
-3. **اعتبارسنجی دقیق پورت TCP و بررسی در حال استفاده بودن آن** (همراه با نمایش پردازش اشغال‌کننده).
-4. **نمایش خلاصه تنظیمات (Installation Summary) و امکان تایید یا انصراف**.
-5. **نصب وابستگی‌ها با `bun` و بیلد پروداکشن (`bun run build`) بدون دستکاری یا استفاده از `--force`**.
-6. **پیکربندی سرویس سیستمی (`water.service`) یا مدیریت پردازش مستقیم در پس‌زمینه**.
-7. **ایجاد اسکریپت‌های اختصاصی مدیریت استاندارد** (`start.sh`, `stop.sh`, `restart.sh`, `status.sh`, `uninstall.sh`).
+   - راه‌اندازی خودکار پس از نصب (`Yes/No`)
+3. **اعتبارسنجی پورت TCP و بررسی عدم اشغال بودن پورت** (با نمایش نام و PID پردازش اشغال‌کننده).
+4. **نمایش خلاصه نصب (Installation Summary)** و دریافت تایید نهایی کاربر.
+5. **نصب هوشمند وابستگی‌ها با Bun (در صورت وجود `bun.lock`) و بیلد کامل پروداکشن**.
+6. **سرویس پایدار سیستمد (`water.service`)** با ری‌استارت خودکار در صورت بروز خطای غیرمنتظره.
+7. **اسکریپت‌های مدیریت یکپارچه** (`start.sh`, `stop.sh`, `restart.sh`, `status.sh`, `uninstall.sh`).
+
+---
+
+### 📱 پنل مدیریت پیامک و اطلاع‌رسانی خودکار بار (SMS Gateway)
+- **وب‌سرویس و کلید اختصاصی API**: مجهز به API Key ارائه‌شده (`cqusH7jQYJDfj6VLPJk6hcJTdYbmNMsx70X6iTTEezjAe8Ea`).
+- **ارسال خودکار پیامک هنگام بارگیری**: با تغییر وضعیت سفارش به «تحویل به راننده» یا «در مسیر ارسال»، پیامکی حاوی تعداد باکس، نام راننده، لینک فاکتور و وضعیت زنده برای شماره مشتری ارسال می‌شود.
+- **ارسال پیامک تحویل**: ارسال خودکار پیامک تسویه و فاکتور نهایی پس از تحویل بار به مغازه‌دار.
+- **تاریخچه و لاگ زنده**: ثبت تمام پیامک‌های ارسالی با وضعیت تحویل مخابرات و شناسه رهگیری در دیتابیس لوکال.
+- **ارسال پیامک تکی و دستی**: امکان ارسال پیامک سریع به هر شماره دلخواه از درون پنل مدیریت کلان.
 
 ---
 
@@ -88,11 +97,11 @@ sudo ./install.sh
 # مشاهده لاگ‌های زنده
 sudo journalctl -u water -f
 
-# حذف ایمن سامانه
+# حذف ایمن و استاندارد
 sudo ./uninstall.sh
 ```
 
-همچنین در صورت استفاده از systemd:
+همچنین می‌توانید مستقیماً از دستورات استاندارد لینوکس استفاده فرمایید:
 ```bash
 sudo systemctl status water
 sudo systemctl restart water
@@ -174,18 +183,14 @@ chmod +x install.sh
 sudo ./install.sh
 ```
 
-During installation, the interactive installer wizard will:
-- Display the clean **WATER ASCII Banner**.
-- Prompt for configurable options with sensible defaults (press ENTER to accept):
-  - **Installation directory** (default: `/opt/water`)
-  - **Web port** (default: `3000`, with TCP validation & port availability checks)
-  - **Host / bind address** (default: `0.0.0.0`)
-  - **Environment** (default: `production`)
-  - **Auto start** (default: `Yes`)
-- Display an **Installation Summary** for confirmation before making changes.
-- Automatically resolve dependencies using `bun` (with clean fallback to `npm` without `--force` or `--legacy-peer-deps`).
-- Execute a production build (`bun run build` / `npm run build`).
-- Set up process management (`water.service` via systemd or background daemon).
+During installation, the script will:
+- Check root permissions and unlock `dpkg`/`apt` if needed.
+- Install Node.js 20 LTS automatically.
+- Allocate swap memory if running on a low-RAM VPS.
+- Prompt for the desired port (default: `3000`).
+- Install dependencies and build production assets.
+- Create and enable the systemd daemon (`water-b2b.service`).
+- Open the port in your Linux firewall (UFW / Firewalld).
 
 ---
 
@@ -194,24 +199,24 @@ During installation, the interactive installer wizard will:
 ```bash
 # Check status
 ./status.sh
-# or: sudo systemctl status water
+# or: sudo systemctl status water-b2b
 
 # Restart server
 ./restart.sh
-# or: sudo systemctl restart water
+# or: sudo systemctl restart water-b2b
 
 # Stop server
 ./stop.sh
-# or: sudo systemctl stop water
+# or: sudo systemctl stop water-b2b
 
 # Start server
 ./start.sh
-# or: sudo systemctl start water
+# or: sudo systemctl start water-b2b
 
-# Live logs (systemd)
-sudo journalctl -u water -f
+# Live logs
+sudo journalctl -u water-b2b -f
 
-# Complete uninstall wizard
+# Complete uninstall
 sudo ./uninstall.sh
 ```
 

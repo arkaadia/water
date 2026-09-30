@@ -1,120 +1,87 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# WATER Business Management Platform - Uninstall Script
+# WATER — Safe Uninstallation Script
 # ==============================================================================
 
-set -eo pipefail
+set -e
 
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$APP_DIR"
-
-# ANSI Colors
-CYAN='\033[0;36m'
+RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-RED='\033[0;31m'
+CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Source configuration if available
-INSTALL_PATH="$APP_DIR"
-if [ -f "$APP_DIR/.water.conf" ]; then
-  # shellcheck source=/dev/null
-  source "$APP_DIR/.water.conf" 2>/dev/null || true
-  [ -n "$INSTALL_DIR" ] && INSTALL_PATH="$INSTALL_DIR"
+if [ "$EUID" -ne 0 ]; then
+  echo -e "${RED}[ERROR] Root privileges required to uninstall WATER service.${NC}"
+  echo -e "Please run: ${BOLD}sudo bash uninstall.sh${NC}"
+  exit 1
 fi
 
-echo ""
-echo -e "${RED}========================================${NC}"
-echo -e "${BOLD}${RED}WATER UNINSTALL WIZARD${NC}"
-echo -e "${RED}======================${NC}"
-echo ""
-echo -e "This wizard will safely remove WATER from your system:"
-echo -e "  • Stop any running WATER processes or services"
-if [ -f "/etc/systemd/system/water.service" ]; then
-  echo -e "  • Remove systemd service: ${BOLD}/etc/systemd/system/water.service${NC}"
-fi
-echo -e "  • Remove runtime PID and log files"
-echo -e "  • Installation directory: ${BOLD}$INSTALL_PATH${NC}"
-echo ""
-echo -e "${RED}========================================${NC}"
+INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo -e "${RED}======================================================================${NC}"
+echo -e "${BOLD}${RED}WARNING: WATER Uninstallation${NC}"
+echo -e "${RED}======================================================================${NC}"
+echo -e "This script will perform the following actions:"
+echo -e "  1. Stop and disable the systemd service: ${BOLD}water.service${NC}"
+echo -e "  2. Remove /etc/systemd/system/water.service"
+echo -e "  3. Terminate any running server processes"
+echo -e "  4. Optionally remove application files in: ${BOLD}${INSTALL_DIR}${NC}"
 echo ""
 
-prompt_input() {
+prompt_confirm() {
   local prompt_text="$1"
-  local default_val="$2"
+  local var_name="$2"
   local user_input=""
 
-  printf "%b" "$prompt_text" >&2
-  if read -r user_input; then
-    user_input=$(echo "$user_input" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  if (exec < /dev/tty) 2>/dev/null && (exec > /dev/tty) 2>/dev/null; then
+    printf "%b" "$prompt_text" > /dev/tty
+    read -r user_input < /dev/tty
+  elif [ -t 0 ]; then
+    read -p "$prompt_text" user_input
+  else
+    user_input="N"
   fi
-  if [ -z "$user_input" ]; then
-    user_input="$default_val"
-  fi
-  echo "$user_input"
+  eval "$var_name=\"$user_input\""
 }
 
-CONFIRM=$(prompt_input "Are you sure you want to proceed with uninstallation? [y/N]: " "N")
-case "$CONFIRM" in
-  [yY]|[yY][eE][sS])
-    ;;
+prompt_confirm "Are you sure you want to stop and remove the WATER service? [y/N]: " CONFIRM_SERVICE
+case "$CONFIRM_SERVICE" in
+  [yY][eE][sS]|[yY]) ;;
   *)
-    echo -e "\n${YELLOW}Uninstallation cancelled.${NC}"
+    echo -e "${YELLOW}Uninstallation aborted.${NC}"
     exit 0
     ;;
 esac
 
-echo ""
-echo -e "${YELLOW}[1/3] Stopping WATER service and processes...${NC}"
+echo -e "${YELLOW}• Stopping and disabling systemd service...${NC}"
+systemctl stop water.service 2>/dev/null || true
+systemctl disable water.service 2>/dev/null || true
+rm -f /etc/systemd/system/water.service
+systemctl daemon-reload
 
-# Stop systemd service if exists
-if [ -f "/etc/systemd/system/water.service" ]; then
-  if command -v systemctl >/dev/null 2>&1; then
-    systemctl stop water.service 2>/dev/null || true
-    systemctl disable water.service 2>/dev/null || true
-    rm -f "/etc/systemd/system/water.service"
-    systemctl daemon-reload 2>/dev/null || true
-    echo -e "${GREEN}✓ Systemd service water.service removed.${NC}"
-  fi
-fi
+echo -e "${YELLOW}• Terminating running processes...${NC}"
+pkill -f "node.*${INSTALL_DIR}/server.js" 2>/dev/null || true
 
-# Stop standalone process
-"$APP_DIR/stop.sh" >/dev/null 2>&1 || true
-rm -f "$APP_DIR/water.pid" "$APP_DIR/water.log"
+echo -e "${GREEN}✓ Systemd service water.service removed.${NC}"
 
-echo -e "${GREEN}✓ Processes stopped and runtime files cleaned.${NC}"
-
-echo ""
-echo -e "${YELLOW}[2/3] Cleaning configuration files...${NC}"
-rm -f "$APP_DIR/.water.conf"
-
-echo ""
-echo -e "${YELLOW}[3/3] Application Directory Cleanup${NC}"
-# Safety guard against removing root or standard system paths
-CAN_REMOVE_DIR=false
-if [ -n "$INSTALL_PATH" ] && [ "$INSTALL_PATH" != "/" ] && [ "$INSTALL_PATH" != "/root" ] && [ "$INSTALL_PATH" != "/home" ] && [ "$INSTALL_PATH" != "/usr" ] && [ "$INSTALL_PATH" != "/var" ] && [ "$INSTALL_PATH" != "/app/applet" ]; then
-  CAN_REMOVE_DIR=true
-fi
-
-if [ "$CAN_REMOVE_DIR" = true ]; then
-  REMOVE_DIR_RESP=$(prompt_input "Do you also want to permanently delete application files in '$INSTALL_PATH'? [y/N]: " "N")
-  case "$REMOVE_DIR_RESP" in
-    [yY]|[yY][eE][sS])
-      echo -e "${YELLOW}Removing $INSTALL_PATH...${NC}"
-      rm -rf "$INSTALL_PATH"
-      echo -e "${GREEN}✓ Directory $INSTALL_PATH removed.${NC}"
-      ;;
-    *)
-      echo -e "Application directory '$INSTALL_PATH' preserved."
-      ;;
-  esac
-else
-  echo -e "Application directory is preserved (path: $INSTALL_PATH)."
-fi
+# Optional file deletion check
+prompt_confirm "Do you also want to remove all files in ${INSTALL_DIR}? [y/N]: " CONFIRM_FILES
+case "$CONFIRM_FILES" in
+  [yY][eE][sS]|[yY])
+    if [ "$INSTALL_DIR" != "/" ] && [ "$INSTALL_DIR" != "/root" ] && [ "$INSTALL_DIR" != "/home" ]; then
+      echo -e "${YELLOW}• Removing directory ${INSTALL_DIR}...${NC}"
+      rm -rf "$INSTALL_DIR"
+      echo -e "${GREEN}✓ Application files removed.${NC}"
+    else
+      echo -e "${RED}[SAFETY] Refusing to delete protected system root directory: ${INSTALL_DIR}${NC}"
+    fi
+    ;;
+  *)
+    echo -e "${CYAN}• Application files were preserved in ${INSTALL_DIR}.${NC}"
+    ;;
+esac
 
 echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${BOLD}${GREEN}WATER has been successfully uninstalled.${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
+echo -e "${GREEN}✓ WATER has been successfully uninstalled.${NC}"

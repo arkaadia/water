@@ -202,3 +202,26 @@ export interface AuditLog {
   action: string;
   details: string;
 }
+
+export interface SmsLogEntry {
+  id: string;
+  timestamp: string;
+  recipientPhone: string;
+  customerName: string;
+  orderNumber?: string;
+  message: string;
+  status: 'delivered' | 'sent' | 'failed' | 'pending';
+  providerResponseId?: string;
+  eventType: 'order_shipped' | 'order_delivered' | 'order_registered' | 'manual' | 'reminder';
+}
+
+export interface SmsConfig {
+  apiKey: string;
+  endpointUrl: string;
+  senderLine: string;
+  autoSendOnShipped: boolean;
+  autoSendOnDelivered: boolean;
+  shippedTemplate: string;
+  deliveredTemplate: string;
+}
+

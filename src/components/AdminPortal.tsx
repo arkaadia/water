@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Product, PricingTier } from '../types';
 import { AdminExecutiveDashboard } from './AdminExecutiveDashboard';
+import { SmsManagementPortal } from './SmsManagementPortal';
 import {
   Shield,
   BarChart3,
@@ -18,7 +19,8 @@ import {
   AlertTriangle,
   Download,
   Settings,
-  Edit2
+  Edit2,
+  MessageSquare
 } from 'lucide-react';
 
 export const AdminPortal: React.FC = () => {
@@ -37,7 +39,7 @@ export const AdminPortal: React.FC = () => {
     exportToCsv
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'pricing' | 'zones' | 'categories' | 'logs'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs'>('analytics');
 
   // Edit pricing modal/state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -210,6 +212,18 @@ export const AdminPortal: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('sms')}
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+            activeTab === 'sms'
+              ? 'border-indigo-600 text-indigo-700 font-black'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>پنل پیامک و اطلاع‌رسانی بار</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('pricing')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
             activeTab === 'pricing'
@@ -261,6 +275,11 @@ export const AdminPortal: React.FC = () => {
       {/* Tab 1: Executive Analytics & BI Dashboard */}
       {activeTab === 'analytics' && (
         <AdminExecutiveDashboard />
+      )}
+
+      {/* Tab 2: SMS Management & Shipment Notifications */}
+      {activeTab === 'sms' && (
+        <SmsManagementPortal />
       )}
 
       {/* Tab 2: Pricing Engine (Section 18 of brief: قیمت عمومی، عمده، پلکانی، پورسانت) */}

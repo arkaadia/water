@@ -10,6 +10,8 @@ import {
   OrderItem,
   OrderStatus,
   Product,
+  SmsConfig,
+  SmsLogEntry,
   UserRole,
   Visitor,
   WarehouseTransaction
@@ -26,6 +28,12 @@ import {
   INITIAL_TRANSACTIONS,
   INITIAL_VISITORS
 } from '../data/initialData';
+import {
+  DEFAULT_SMS_CONFIG,
+  INITIAL_SMS_LOGS,
+  formatSmsTemplate,
+  dispatchSmsApi
+} from '../services/smsService';
 
 export interface CartItem {
   product: Product;
@@ -112,6 +120,14 @@ interface AppContextType {
   exportToCsv: (rows: Record<string, any>[], filename: string) => void;
   resetAllData: () => void;
   switchRole: (role: UserRole, targetId?: string) => void;
+
+  // SMS Gateway & Notifications
+  smsLogs: SmsLogEntry[];
+  smsConfig: SmsConfig;
+  sendOrderSms: (orderId: string, eventType: 'order_shipped' | 'order_delivered' | 'manual', customMessage?: string) => Promise<boolean>;
+  sendManualSms: (phone: string, customerName: string, message: string) => Promise<boolean>;
+  updateSmsConfig: (updates: Partial<SmsConfig>) => void;
+  clearSmsLogs: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -130,6 +146,8 @@ const STORAGE_KEYS = {
   ROLE: 'gowarano_role_v1',
   CURRENT_CUS: 'gowarano_current_cus_v1',
   CURRENT_SAL: 'gowarano_current_sal_v1',
+  SMS_LOGS: 'gowarano_sms_logs_v1',
+  SMS_CONFIG: 'gowarano_sms_config_v1',
 };
 
 function getStorage<T>(key: string, defaultValue: T): T {
@@ -172,6 +190,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved || INITIAL_VISITORS[0];
   });
 
+  const [smsLogs, setSmsLogs] = useState<SmsLogEntry[]>(() => getStorage(STORAGE_KEYS.SMS_LOGS, INITIAL_SMS_LOGS));
+  const [smsConfig, setSmsConfig] = useState<SmsConfig>(() => getStorage(STORAGE_KEYS.SMS_CONFIG, DEFAULT_SMS_CONFIG));
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
   const [dedicatedCustomerCode, setDedicatedCustomerCode] = useState<string | null>(null);
@@ -190,6 +211,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => setStorage(STORAGE_KEYS.ROLE, currentUserRole), [currentUserRole]);
   useEffect(() => setStorage(STORAGE_KEYS.CURRENT_CUS, currentCustomer), [currentCustomer]);
   useEffect(() => setStorage(STORAGE_KEYS.CURRENT_SAL, currentVisitor), [currentVisitor]);
+  useEffect(() => setStorage(STORAGE_KEYS.SMS_LOGS, smsLogs), [smsLogs]);
+  useEffect(() => setStorage(STORAGE_KEYS.SMS_CONFIG, smsConfig), [smsConfig]);
 
   const addAuditLog = (action: string, details: string) => {
     let userName = 'کاربر عمومی';
@@ -209,6 +232,96 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       details
     };
     setAuditLogs(prev => [newLog, ...prev]);
+  };
+
+  const sendOrderSms = async (
+    orderId: string,
+    eventType: 'order_shipped' | 'order_delivered' | 'manual',
+    customMessage?: string
+  ): Promise<boolean> => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return false;
+
+    const template = customMessage || (
+      eventType === 'order_delivered'
+        ? smsConfig.deliveredTemplate
+        : smsConfig.shippedTemplate
+    );
+
+    const formattedMsg = formatSmsTemplate(template, order);
+    const nowPersian = new Date().toLocaleDateString('fa-IR') + ' ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+
+    const result = await dispatchSmsApi({
+      apiKey: smsConfig.apiKey,
+      endpointUrl: smsConfig.endpointUrl,
+      recipientPhone: order.customerPhone,
+      message: formattedMsg,
+      orderNumber: order.orderNumber,
+      eventType
+    });
+
+    const newLog: SmsLogEntry = {
+      id: `sms-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: nowPersian,
+      recipientPhone: order.customerPhone,
+      customerName: order.customerName,
+      orderNumber: order.orderNumber,
+      message: formattedMsg,
+      status: result.success ? 'delivered' : 'failed',
+      providerResponseId: result.responseId,
+      eventType
+    };
+
+    setSmsLogs(prev => [newLog, ...prev]);
+
+    addAuditLog(
+      'ارسال پیامک وضعیت بار',
+      `پیامک (${eventType === 'order_shipped' ? 'ارسال بار و لینک فاکتور' : 'تحویل بار'}) برای مشتری ${order.customerName} (${order.customerPhone}) ارسال شد.`
+    );
+
+    return result.success;
+  };
+
+  const sendManualSms = async (phone: string, customerName: string, message: string): Promise<boolean> => {
+    const nowPersian = new Date().toLocaleDateString('fa-IR') + ' ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+
+    const result = await dispatchSmsApi({
+      apiKey: smsConfig.apiKey,
+      endpointUrl: smsConfig.endpointUrl,
+      recipientPhone: phone,
+      message,
+      eventType: 'manual'
+    });
+
+    const newLog: SmsLogEntry = {
+      id: `sms-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: nowPersian,
+      recipientPhone: phone,
+      customerName: customerName || 'مشتری',
+      message,
+      status: result.success ? 'delivered' : 'failed',
+      providerResponseId: result.responseId,
+      eventType: 'manual'
+    };
+
+    setSmsLogs(prev => [newLog, ...prev]);
+
+    addAuditLog(
+      'ارسال پیامک دستی',
+      `پیامک دستی به شماره ${phone} (${customerName}) ارسال گردید.`
+    );
+
+    return result.success;
+  };
+
+  const updateSmsConfig = (updates: Partial<SmsConfig>) => {
+    setSmsConfig(prev => ({ ...prev, ...updates }));
+    addAuditLog('تنظیمات پنل پیامک', 'پیکربندی پنل اس‌ام‌اس و کلید وب‌سرویس به‌روزرسانی شد.');
+  };
+
+  const clearSmsLogs = () => {
+    setSmsLogs([]);
+    addAuditLog('پاکسازی لاگ پیامک', 'تاریخچه پیامک‌های ارسالی پاک شد.');
   };
 
   const getEffectivePrice = (product: Product, quantityBoxes: number) => {
@@ -494,6 +607,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     addAuditLog('تغییر وضعیت سفارش', `سفارش ${order.orderNumber} به وضعیت "${newStatus}" تغییر یافت.`);
+
+    // Auto-send SMS to customer upon shipment or delivery
+    if ((newStatus === 'shipped' || newStatus === 'handed_to_driver') && smsConfig.autoSendOnShipped) {
+      sendOrderSms(order.id, 'order_shipped');
+    } else if (newStatus === 'delivered' && smsConfig.autoSendOnDelivered) {
+      sendOrderSms(order.id, 'order_delivered');
+    }
   };
 
   const assignDriverToOrder = (orderId: string, driverId: string) => {
@@ -529,6 +649,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     addAuditLog('تخصیص راننده', `سفارش به راننده ${driver.name} تخصیص داده شد.`);
+
+    if (smsConfig.autoSendOnShipped) {
+      sendOrderSms(orderId, 'order_shipped');
+    }
   };
 
   const recordWarehouseTransaction = ({
@@ -790,7 +914,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateDeliveryZone,
         exportToCsv,
         resetAllData,
-        switchRole
+        switchRole,
+        smsLogs,
+        smsConfig,
+        sendOrderSms,
+        sendManualSms,
+        updateSmsConfig,
+        clearSmsLogs
       }}
     >
       {children}
