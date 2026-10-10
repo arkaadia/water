@@ -31,14 +31,21 @@ export const DeliveryPortal: React.FC<DeliveryPortalProps> = ({ onOpenInvoice })
     sendOrderSms
   } = useApp();
 
-  const [smsSentToast, setSmsSentToast] = useState<string | null>(null);
+  const [smsSentToast, setSmsSentToast] = useState<{ message: string; isError?: boolean } | null>(null);
 
   const handleSendSms = async (orderId: string, orderNumber: string) => {
-    const success = await sendOrderSms(orderId, 'order_shipped');
-    if (success) {
-      setSmsSentToast(orderNumber);
-      setTimeout(() => setSmsSentToast(null), 3500);
+    const res = await sendOrderSms(orderId, 'order_shipped');
+    if (res.success) {
+      setSmsSentToast({
+        message: `پیامک وضعیت بار و لینک فاکتور برای سفارش ${orderNumber} به درگاه SMS.ir ارسال شد.`
+      });
+    } else {
+      setSmsSentToast({
+        message: `خطا در ارسال پیامک سفارش ${orderNumber}: ${res.error || 'پاسخ ناموفق از سامانه'}`,
+        isError: true
+      });
     }
+    setTimeout(() => setSmsSentToast(null), 5000);
   };
 
   const [zoneFilter, setZoneFilter] = useState<string>('all');
@@ -149,12 +156,12 @@ export const DeliveryPortal: React.FC<DeliveryPortalProps> = ({ onOpenInvoice })
 
       {/* Toast */}
       {smsSentToast && (
-        <div className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-md flex items-center justify-between text-xs font-bold">
+        <div className={`${smsSentToast.isError ? 'bg-rose-600' : 'bg-indigo-600'} text-white px-4 py-2.5 rounded-xl shadow-md flex items-center justify-between text-xs font-bold transition`}>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-indigo-200" />
-            <span>پیامک وضعیت بار و لینک فاکتور برای سفارش {smsSentToast} به مشتری ارسال شد.</span>
+            <CheckCircle2 className="w-4 h-4 text-white/80" />
+            <span>{smsSentToast.message}</span>
           </div>
-          <button onClick={() => setSmsSentToast(null)} className="text-white hover:text-indigo-200 text-xs">
+          <button onClick={() => setSmsSentToast(null)} className="text-white hover:text-white/70 text-xs mr-2">
             ✕
           </button>
         </div>

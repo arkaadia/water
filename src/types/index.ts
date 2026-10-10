@@ -212,6 +212,10 @@ export interface SmsLogEntry {
   message: string;
   status: 'delivered' | 'sent' | 'failed' | 'pending';
   providerResponseId?: string;
+  packId?: string;
+  providerStatus?: number;
+  errorMessage?: string;
+  cost?: number;
   eventType: 'order_shipped' | 'order_delivered' | 'order_registered' | 'manual' | 'reminder';
 }
 

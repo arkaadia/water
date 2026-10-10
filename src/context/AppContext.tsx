@@ -124,8 +124,8 @@ interface AppContextType {
   // SMS Gateway & Notifications
   smsLogs: SmsLogEntry[];
   smsConfig: SmsConfig;
-  sendOrderSms: (orderId: string, eventType: 'order_shipped' | 'order_delivered' | 'manual', customMessage?: string) => Promise<boolean>;
-  sendManualSms: (phone: string, customerName: string, message: string) => Promise<boolean>;
+  sendOrderSms: (orderId: string, eventType: 'order_shipped' | 'order_delivered' | 'manual', customMessage?: string) => Promise<{ success: boolean; error?: string; responseId?: string }>;
+  sendManualSms: (phone: string, customerName: string, message: string) => Promise<{ success: boolean; error?: string; responseId?: string }>;
   updateSmsConfig: (updates: Partial<SmsConfig>) => void;
   clearSmsLogs: () => void;
 }
@@ -238,9 +238,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     orderId: string,
     eventType: 'order_shipped' | 'order_delivered' | 'manual',
     customMessage?: string
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; error?: string; responseId?: string }> => {
     const order = orders.find(o => o.id === orderId);
-    if (!order) return false;
+    if (!order) return { success: false, error: 'سفارش مورد نظر یافت نشد.' };
 
     const template = customMessage || (
       eventType === 'order_delivered'
@@ -257,7 +257,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recipientPhone: order.customerPhone,
       message: formattedMsg,
       orderNumber: order.orderNumber,
-      eventType
+      eventType,
+      lineNumber: smsConfig.senderLine
     });
 
     const newLog: SmsLogEntry = {
@@ -267,22 +268,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       customerName: order.customerName,
       orderNumber: order.orderNumber,
       message: formattedMsg,
-      status: result.success ? 'delivered' : 'failed',
+      status: result.success ? 'sent' : 'failed',
       providerResponseId: result.responseId,
+      packId: result.packId,
+      providerStatus: result.providerStatus,
+      errorMessage: result.error,
+      cost: result.cost,
       eventType
     };
 
     setSmsLogs(prev => [newLog, ...prev]);
 
-    addAuditLog(
-      'ارسال پیامک وضعیت بار',
-      `پیامک (${eventType === 'order_shipped' ? 'ارسال بار و لینک فاکتور' : 'تحویل بار'}) برای مشتری ${order.customerName} (${order.customerPhone}) ارسال شد.`
-    );
+    if (result.success) {
+      addAuditLog(
+        'ارسال پیامک وضعیت بار',
+        `پیامک (${eventType === 'order_shipped' ? 'ارسال بار و لینک فاکتور' : 'تحویل بار'}) برای مشتری ${order.customerName} (${order.customerPhone}) به درگاه SMS.ir تحویل شد.`
+      );
+    } else {
+      addAuditLog(
+        'خطای ارسال پیامک',
+        `ارسال پیامک سفارش ${order.orderNumber} ناموفق بود: ${result.error || 'عدم تأیید درگاه پیامک'}`
+      );
+    }
 
-    return result.success;
+    return {
+      success: result.success,
+      error: result.error,
+      responseId: result.responseId
+    };
   };
 
-  const sendManualSms = async (phone: string, customerName: string, message: string): Promise<boolean> => {
+  const sendManualSms = async (
+    phone: string,
+    customerName: string,
+    message: string
+  ): Promise<{ success: boolean; error?: string; responseId?: string }> => {
     const nowPersian = new Date().toLocaleDateString('fa-IR') + ' ' + new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
     const result = await dispatchSmsApi({
@@ -290,7 +310,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       endpointUrl: smsConfig.endpointUrl,
       recipientPhone: phone,
       message,
-      eventType: 'manual'
+      eventType: 'manual',
+      lineNumber: smsConfig.senderLine
     });
 
     const newLog: SmsLogEntry = {
@@ -299,19 +320,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recipientPhone: phone,
       customerName: customerName || 'مشتری',
       message,
-      status: result.success ? 'delivered' : 'failed',
+      status: result.success ? 'sent' : 'failed',
       providerResponseId: result.responseId,
+      packId: result.packId,
+      providerStatus: result.providerStatus,
+      errorMessage: result.error,
+      cost: result.cost,
       eventType: 'manual'
     };
 
     setSmsLogs(prev => [newLog, ...prev]);
 
-    addAuditLog(
-      'ارسال پیامک دستی',
-      `پیامک دستی به شماره ${phone} (${customerName}) ارسال گردید.`
-    );
+    if (result.success) {
+      addAuditLog(
+        'ارسال پیامک دستی',
+        `پیامک دستی به شماره ${phone} (${customerName}) به درگاه پیامک ارسال گردید.`
+      );
+    } else {
+      addAuditLog(
+        'خطای ارسال پیامک دستی',
+        `ارسال پیامک دستی به ${phone} ناموفق بود: ${result.error || 'عدم پذیرش درگاه'}`
+      );
+    }
 
-    return result.success;
+    return {
+      success: result.success,
+      error: result.error,
+      responseId: result.responseId
+    };
   };
 
   const updateSmsConfig = (updates: Partial<SmsConfig>) => {

@@ -10,7 +10,7 @@ interface InvoiceModalProps {
 
 export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) => {
   const { sendOrderSms } = useApp();
-  const [smsSent, setSmsSent] = useState(false);
+  const [smsStatus, setSmsStatus] = useState<{ sent?: boolean; error?: string } | null>(null);
 
   if (!order) return null;
 
@@ -19,10 +19,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
   };
 
   const handleSendInvoiceSms = async () => {
-    const success = await sendOrderSms(order.id, 'order_shipped');
-    if (success) {
-      setSmsSent(true);
-      setTimeout(() => setSmsSent(false), 3500);
+    const res = await sendOrderSms(order.id, 'order_shipped');
+    if (res.success) {
+      setSmsStatus({ sent: true });
+      setTimeout(() => setSmsStatus(null), 4000);
+    } else {
+      setSmsStatus({ error: res.error || 'خطا در ارسال پیامک' });
+      setTimeout(() => setSmsStatus(null), 5000);
     }
   };
 
@@ -40,14 +43,27 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
           <div className="flex items-center gap-2">
             <button
               onClick={handleSendInvoiceSms}
+              title={smsStatus?.error}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-xs ${
-                smsSent
+                smsStatus?.sent
                   ? 'bg-emerald-600 text-white'
+                  : smsStatus?.error
+                  ? 'bg-rose-600 text-white'
                   : 'bg-indigo-600 hover:bg-indigo-700 text-white'
               }`}
             >
-              {smsSent ? <CheckCircle2 className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
-              <span>{smsSent ? 'پیامک ارسال شد ✓' : 'ارسال پیامک فاکتور به مشتری'}</span>
+              {smsStatus?.sent ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <MessageSquare className="w-4 h-4" />
+              )}
+              <span>
+                {smsStatus?.sent
+                  ? 'پیامک ارسال شد ✓'
+                  : smsStatus?.error
+                  ? 'خطا در ارسال پیامک'
+                  : 'ارسال پیامک فاکتور به مشتری'}
+              </span>
             </button>
             <button
               onClick={handlePrint}
