@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { Product, PricingTier } from '../types';
 import { AdminExecutiveDashboard } from './AdminExecutiveDashboard';
 import { SmsManagementPortal } from './SmsManagementPortal';
+import { AdminProductManager } from './AdminProductManager';
+import { AdminThemeSelector } from './AdminThemeSelector';
 import {
   Shield,
   BarChart3,
@@ -20,7 +22,8 @@ import {
   Download,
   Settings,
   Edit2,
-  MessageSquare
+  MessageSquare,
+  Palette
 } from 'lucide-react';
 
 export const AdminPortal: React.FC = () => {
@@ -39,7 +42,7 @@ export const AdminPortal: React.FC = () => {
     exportToCsv
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'themes' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs'>('products');
 
   // Edit pricing modal/state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -200,10 +203,34 @@ export const AdminPortal: React.FC = () => {
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-4 text-xs font-bold overflow-x-auto">
         <button
+          onClick={() => setActiveTab('products')}
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+            activeTab === 'products'
+              ? 'border-indigo-600 text-indigo-700 font-black'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Package className="w-4 h-4 text-indigo-600" />
+          <span>مدیریت و ویرایش محصولات فروشگاه ({products.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('themes')}
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+            activeTab === 'themes'
+              ? 'border-rose-600 text-rose-700 font-black'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Palette className="w-4 h-4 text-rose-600" />
+          <span>قالب و پوسته‌های فروشگاه (Themes)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('analytics')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
             activeTab === 'analytics'
-              ? 'border-rose-600 text-rose-700'
+              ? 'border-rose-600 text-rose-700 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -271,6 +298,16 @@ export const AdminPortal: React.FC = () => {
           <span>لاگ ممیزی و رویدادهای سیستم ({auditLogs.length})</span>
         </button>
       </div>
+
+      {/* Tab: Store Products & Catalog Management */}
+      {activeTab === 'products' && (
+        <AdminProductManager />
+      )}
+
+      {/* Tab: Store Themes Selection */}
+      {activeTab === 'themes' && (
+        <AdminThemeSelector />
+      )}
 
       {/* Tab 1: Executive Analytics & BI Dashboard */}
       {activeTab === 'analytics' && (

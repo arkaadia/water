@@ -16,6 +16,7 @@ import {
   Visitor,
   WarehouseTransaction
 } from '../types';
+import { StoreThemeId, StoreTheme, STORE_THEMES } from '../types/theme';
 import {
   INITIAL_AUDIT_LOGS,
   INITIAL_CATEGORIES,
@@ -109,7 +110,13 @@ interface AppContextType {
   // Product & Category actions
   addProduct: (product: Omit<Product, 'id' | 'sku'> & { sku?: string }) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
+  deleteProduct: (id: string) => void;
   addCategory: (category: Category) => void;
+
+  // Store Theme actions
+  currentTheme: StoreThemeId;
+  setCurrentTheme: (themeId: StoreThemeId) => void;
+  activeTheme: StoreTheme;
 
   // Customer actions
   addCustomer: (customerData: Omit<Customer, 'id' | 'currentBalance' | 'totalPurchases' | 'createdAt'>) => Customer;
@@ -148,6 +155,7 @@ const STORAGE_KEYS = {
   CURRENT_SAL: 'gowarano_current_sal_v1',
   SMS_LOGS: 'gowarano_sms_logs_v1',
   SMS_CONFIG: 'gowarano_sms_config_v1',
+  THEME: 'gowarano_theme_v1',
 };
 
 function getStorage<T>(key: string, defaultValue: T): T {
@@ -193,6 +201,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [smsLogs, setSmsLogs] = useState<SmsLogEntry[]>(() => getStorage(STORAGE_KEYS.SMS_LOGS, INITIAL_SMS_LOGS));
   const [smsConfig, setSmsConfig] = useState<SmsConfig>(() => getStorage(STORAGE_KEYS.SMS_CONFIG, DEFAULT_SMS_CONFIG));
 
+  const [currentTheme, setCurrentTheme] = useState<StoreThemeId>(() => getStorage(STORAGE_KEYS.THEME, 'mineral_spring'));
+  const activeTheme = STORE_THEMES[currentTheme] || STORE_THEMES.mineral_spring;
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
   const [dedicatedCustomerCode, setDedicatedCustomerCode] = useState<string | null>(null);
@@ -213,6 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => setStorage(STORAGE_KEYS.CURRENT_SAL, currentVisitor), [currentVisitor]);
   useEffect(() => setStorage(STORAGE_KEYS.SMS_LOGS, smsLogs), [smsLogs]);
   useEffect(() => setStorage(STORAGE_KEYS.SMS_CONFIG, smsConfig), [smsConfig]);
+  useEffect(() => setStorage(STORAGE_KEYS.THEME, currentTheme), [currentTheme]);
 
   const addAuditLog = (action: string, details: string) => {
     let userName = 'کاربر عمومی';
@@ -813,6 +825,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addAuditLog('ویرایش محصول', `محصول ${id} به‌روزرسانی شد.`);
   };
 
+  const deleteProduct = (id: string) => {
+    const prod = products.find(p => p.id === id);
+    setProducts(prev => prev.filter(p => p.id !== id));
+    setCart(prev => prev.filter(item => item.product.id !== id));
+    addAuditLog('حذف محصول', `محصول ${prod?.name || id} با کد ${prod?.sku || ''} توسط مدیر از فروشگاه عمومی حذف گردید.`);
+  };
+
   const addCategory = (cat: Category) => {
     setCategories(prev => [...prev, cat]);
     addAuditLog('افزودن دسته‌بندی', `دسته‌بندی جدید "${cat.name}" ایجاد شد.`);
@@ -944,7 +963,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recordLedgerPayment,
         addProduct,
         updateProduct,
+        deleteProduct,
         addCategory,
+        currentTheme,
+        setCurrentTheme,
+        activeTheme,
         addCustomer,
         updateCustomer,
         updateDeliveryZone,

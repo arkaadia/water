@@ -42,7 +42,8 @@ export const Storefront: React.FC<StorefrontProps> = ({
     addToCart,
     cart,
     updateCartQuantity,
-    getEffectivePrice
+    getEffectivePrice,
+    activeTheme
   } = useApp();
 
   const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
@@ -64,36 +65,36 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
-      {/* Hero B2B Banner (Digikala Festival Style) */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-cyan-900 via-sky-800 to-blue-900 text-white shadow-2xl p-6 sm:p-10 border border-sky-700/40">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.25),transparent_60%)] pointer-events-none"></div>
+      {/* Hero B2B Banner (Theme-Aware) */}
+      <div className={`relative rounded-3xl overflow-hidden bg-gradient-to-r ${activeTheme.bannerGradient} text-white shadow-2xl p-6 sm:p-10 border border-white/10`}>
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_60%)] pointer-events-none"></div>
 
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 bg-cyan-500/20 backdrop-blur-md text-cyan-200 text-xs px-3.5 py-1.5 rounded-full border border-cyan-400/30">
-            <Sparkles className="w-4 h-4 text-cyan-300" />
-            <span>پخش مستقیم کارخانه با قیمت پلکانی تناژ ویژه سوپرمارکت‌ها و رستوران‌ها</span>
+          <div className={`inline-flex items-center gap-2 backdrop-blur-md text-xs px-3.5 py-1.5 rounded-full border ${activeTheme.badgeClass}`}>
+            <Sparkles className="w-4 h-4" />
+            <span>{activeTheme.heroBadge}</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl font-black leading-tight text-white">
-            تأمین عمده و مویرگی آب آشامیدنی، معدنی و انواع نوشیدنی
+            {activeTheme.heroTitle}
           </h1>
 
-          <p className="text-xs sm:text-sm text-sky-100 leading-relaxed max-w-2xl">
-            سفارش آسان با تخفیف‌های پلکانی ۳۰، ۶۰ و ۱۰۰ باکسی، تحویل در سریع‌ترین زمان در شهریار، شهرقدس، ملارد، سرآسیاب، تهرانسر و چیتگر، با تسویه اعتباری و چکی برای همکاران صنفی.
+          <p className="text-xs sm:text-sm text-slate-100 leading-relaxed max-w-2xl opacity-90">
+            {activeTheme.heroSubtitle}
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <button
               onClick={() => onSelectCategory('water')}
-              className="bg-white text-slate-900 hover:bg-cyan-50 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-lg transition flex items-center gap-1.5"
+              className="bg-white text-slate-900 hover:bg-slate-50 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-lg transition flex items-center gap-1.5"
             >
-              <span>مشاهده و خرید آب معدنی</span>
+              <span>مشاهده و خرید اقلام کاتالوگ</span>
               <ChevronLeft className="w-4 h-4" />
             </button>
 
             <button
               onClick={onNavigateDedicatedOrder}
-              className="bg-cyan-500/30 hover:bg-cyan-500/40 text-cyan-100 border border-cyan-300/40 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition"
+              className="bg-white/20 hover:bg-white/30 text-white border border-white/30 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition"
             >
               ورود با کد اختصاصی مشتری (CUS)
             </button>
@@ -227,9 +228,12 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 {/* Product Image & Badges */}
                 <div className="relative aspect-4/3 overflow-hidden bg-slate-100 p-4 flex items-center justify-center">
                   <img
-                    src={product.image}
+                    src={product.image || 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&w=800&q=80'}
                     alt={product.name}
                     className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&w=800&q=80';
+                    }}
                   />
                   {product.isBestSeller && (
                     <span className="absolute top-2.5 right-2.5 bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1">
@@ -240,6 +244,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   {product.isSpecialOffer && (
                     <span className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
                       پیشنهاد ویژه
+                    </span>
+                  )}
+                  {product.isNewArrival && !product.isSpecialOffer && (
+                    <span className="absolute top-2.5 left-2.5 bg-cyan-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                      جدید
                     </span>
                   )}
                 </div>
