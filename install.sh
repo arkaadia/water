@@ -14,6 +14,16 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# Check for non-interactive / automated flag
+AUTO_YES=false
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes|--defaults|-q|--quiet)
+      AUTO_YES=true
+      ;;
+  esac
+done
+
 # Helper: Read input with default value
 prompt_with_default() {
   local prompt_text="$1"
@@ -21,7 +31,10 @@ prompt_with_default() {
   local var_name="$3"
   local user_val=""
 
-  if (exec < /dev/tty) 2>/dev/null && (exec > /dev/tty) 2>/dev/null; then
+  if [ "$AUTO_YES" = true ]; then
+    user_val="$default_val"
+    echo -e "${prompt_text} [${default_val}]: ${default_val}"
+  elif (exec < /dev/tty) 2>/dev/null && (exec > /dev/tty) 2>/dev/null; then
     printf "%b" "${prompt_text} [${default_val}]: " > /dev/tty
     read -r user_val < /dev/tty
   elif [ -t 0 ]; then
@@ -177,6 +190,118 @@ echo ""
 echo -e "${GREEN}>>> Starting installation process...${NC}"
 
 # ------------------------------------------------------------------------------
+# 7. LINUX SYSTEM PREREQUISITES & NODE.JS / NPM AUTO-INSTALLER
+# ------------------------------------------------------------------------------
+echo -e "${BLUE}• Checking Linux system prerequisites and runtimes...${NC}"
+
+# Detect Linux package manager
+LINUX_PM=""
+if command -v apt-get &>/dev/null; then
+  LINUX_PM="apt"
+elif command -v dnf &>/dev/null; then
+  LINUX_PM="dnf"
+elif command -v yum &>/dev/null; then
+  LINUX_PM="yum"
+elif command -v pacman &>/dev/null; then
+  LINUX_PM="pacman"
+elif command -v apk &>/dev/null; then
+  LINUX_PM="apk"
+elif command -v zypper &>/dev/null; then
+  LINUX_PM="zypper"
+fi
+
+# 1. Install missing core CLI utilities (curl, rsync, git)
+MISSING_UTILS=()
+for util in curl rsync git; do
+  if ! command -v "$util" &>/dev/null; then
+    MISSING_UTILS+=("$util")
+  fi
+done
+
+if [ ${#MISSING_UTILS[@]} -gt 0 ]; then
+  echo -e "${YELLOW}• Auto-installing missing system utilities: ${MISSING_UTILS[*]}...${NC}"
+  case "$LINUX_PM" in
+    apt)
+      apt-get update -y && apt-get install -y "${MISSING_UTILS[@]}"
+      ;;
+    dnf)
+      dnf install -y "${MISSING_UTILS[@]}"
+      ;;
+    yum)
+      yum install -y "${MISSING_UTILS[@]}"
+      ;;
+    pacman)
+      pacman -Sy --noconfirm "${MISSING_UTILS[@]}"
+      ;;
+    apk)
+      apk add --no-cache "${MISSING_UTILS[@]}"
+      ;;
+    zypper)
+      zypper install -y "${MISSING_UTILS[@]}"
+      ;;
+    *)
+      echo -e "${YELLOW}Please install ${MISSING_UTILS[*]} manually using your package manager.${NC}"
+      ;;
+  esac
+fi
+
+# 2. Check Node.js and npm runtime (auto-install Node.js 20 LTS if missing or old)
+INSTALL_NODE=false
+if ! command -v node &>/dev/null || ! command -v npm &>/dev/null; then
+  INSTALL_NODE=true
+else
+  CURRENT_NODE_VER=$(node -v 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/')
+  if [ -n "$CURRENT_NODE_VER" ] && [ "$CURRENT_NODE_VER" -lt 18 ]; then
+    echo -e "${YELLOW}• Installed Node.js (v${CURRENT_NODE_VER}) is older than required LTS (v18+). Upgrading...${NC}"
+    INSTALL_NODE=true
+  fi
+fi
+
+if [ "$INSTALL_NODE" = true ]; then
+  echo -e "${CYAN}• Auto-installing Node.js LTS (v20.x) and npm for Linux...${NC}"
+  case "$LINUX_PM" in
+    apt)
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      apt-get update -y && apt-get install -y nodejs
+      ;;
+    dnf)
+      curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+      dnf install -y nodejs
+      ;;
+    yum)
+      curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+      yum install -y nodejs
+      ;;
+    pacman)
+      pacman -Sy --noconfirm nodejs npm
+      ;;
+    apk)
+      apk add --no-cache nodejs npm
+      ;;
+    zypper)
+      zypper install -y nodejs20 npm20 || zypper install -y nodejs npm
+      ;;
+    *)
+      echo -e "${YELLOW}[WARNING] Could not auto-install Node.js. Please ensure Node.js v20+ and npm are installed.${NC}"
+      ;;
+  esac
+fi
+
+if command -v node &>/dev/null; then
+  echo -e "${GREEN}✓ Node.js detected: $(node -v)${NC}"
+else
+  echo -e "${RED}[ERROR] Node.js is not installed. Please install Node.js v20+ and npm.${NC}"
+  exit 1
+fi
+
+if command -v npm &>/dev/null; then
+  echo -e "${GREEN}✓ npm detected    : $(npm -v)${NC}"
+else
+  echo -e "${RED}[ERROR] npm is not installed. Please install npm.${NC}"
+  exit 1
+fi
+
+# ------------------------------------------------------------------------------
 # Directory Setup & Copy (Idempotent)
 # ------------------------------------------------------------------------------
 if [ "$SOURCE_DIR" != "$INSTALL_DIR" ]; then
@@ -190,32 +315,15 @@ fi
 cd "$INSTALL_DIR"
 
 # ------------------------------------------------------------------------------
-# 7. DEPENDENCY INSTALLATION (Prefer Bun if lockfile exists, fallback to npm)
+# 8. DEPENDENCY INSTALLATION (Auto npm install)
 # ------------------------------------------------------------------------------
-PKG_MGR="npm"
-
-if [ -f "$INSTALL_DIR/bun.lock" ] || [ -f "$INSTALL_DIR/bun.lockb" ]; then
-  if command -v bun &>/dev/null; then
-    PKG_MGR="bun"
-  else
-    echo -e "${CYAN}• bun.lock detected. Checking for Bun...${NC}"
-    # Try installing bun on Linux
-    if curl -fsSL https://bun.sh/install | bash 2>/dev/null; then
-      export PATH="$HOME/.bun/bin:$PATH"
-      if command -v bun &>/dev/null; then
-        PKG_MGR="bun"
-        echo -e "${GREEN}✓ Bun installed successfully.${NC}"
-      fi
-    fi
-  fi
-fi
-
-if [ "$PKG_MGR" = "bun" ]; then
-  echo -e "${BLUE}• Installing dependencies using Bun...${NC}"
-  bun install
+echo -e "${BLUE}• Installing project dependencies (npm install)...${NC}"
+if npm install; then
+  echo -e "${GREEN}✓ npm dependencies installed successfully.${NC}"
 else
-  echo -e "${BLUE}• Installing dependencies using npm...${NC}"
-  npm install
+  echo -e "${YELLOW}• Retrying npm install with --legacy-peer-deps...${NC}"
+  npm install --legacy-peer-deps
+  echo -e "${GREEN}✓ Dependencies installed successfully with legacy peer deps.${NC}"
 fi
 
 # ------------------------------------------------------------------------------
@@ -224,14 +332,8 @@ fi
 echo -e "${BLUE}• Building production frontend assets...${NC}"
 BUILD_SUCCESS=false
 
-if [ "$PKG_MGR" = "bun" ]; then
-  if bun run build; then
-    BUILD_SUCCESS=true
-  fi
-else
-  if npm run build; then
-    BUILD_SUCCESS=true
-  fi
+if npm run build; then
+  BUILD_SUCCESS=true
 fi
 
 if [ "$BUILD_SUCCESS" = false ]; then
@@ -282,8 +384,10 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
-systemctl enable water.service 2>/dev/null || true
+if command -v systemctl &>/dev/null && [ -d /run/systemd/system ]; then
+  systemctl daemon-reload 2>/dev/null || true
+  systemctl enable water.service 2>/dev/null || true
+fi
 
 # Make management scripts executable
 chmod +x "$INSTALL_DIR"/*.sh 2>/dev/null || true
@@ -292,9 +396,15 @@ chmod +x "$INSTALL_DIR"/*.sh 2>/dev/null || true
 # 9. START IF REQUESTED
 # ------------------------------------------------------------------------------
 if [ "$START_AFTER" = "Yes" ]; then
-  echo -e "${BLUE}• Starting WATER service...${NC}"
-  systemctl restart water.service 2>/dev/null || true
-  sleep 2
+  if command -v systemctl &>/dev/null && [ -d /run/systemd/system ]; then
+    echo -e "${BLUE}• Starting WATER service via systemd...${NC}"
+    systemctl restart water.service 2>/dev/null || true
+    sleep 2
+  else
+    echo -e "${BLUE}• Starting WATER service in background...${NC}"
+    nohup bash "$INSTALL_DIR/start.sh" > /tmp/water.log 2>&1 &
+    sleep 2
+  fi
 fi
 
 # ------------------------------------------------------------------------------

@@ -29,7 +29,10 @@ if command -v systemctl &>/dev/null && systemctl is-active --quiet water.service
   PID=$(systemctl show --property MainPID --value water.service 2>/dev/null || echo "-")
 else
   # Check manual node/server process
-  MANUAL_PID=$(pgrep -f "node.*server.js" | head -n 1 || true)
+  MANUAL_PID=$(pgrep -f "node.*server" | head -n 1 || true)
+  if [ -z "$MANUAL_PID" ]; then
+    MANUAL_PID=$(pgrep -f "tsx.*server" | head -n 1 || true)
+  fi
   if [ -n "$MANUAL_PID" ]; then
     STATUS="RUNNING (process)"
     PID="$MANUAL_PID"

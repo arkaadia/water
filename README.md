@@ -61,8 +61,8 @@ sudo ./install.sh
    - محیط اجرا (`production` یا `development`)
    - راه‌اندازی خودکار پس از نصب (`Yes/No`)
 3. **اعتبارسنجی پورت TCP و بررسی عدم اشغال بودن پورت** (با نمایش نام و PID پردازش اشغال‌کننده).
-4. **نمایش خلاصه نصب (Installation Summary)** و دریافت تایید نهایی کاربر.
-5. **نصب هوشمند وابستگی‌ها با Bun (در صورت وجود `bun.lock`) و بیلد کامل پروداکشن**.
+4. **نمایش خلاصه تنظیمات نصب (Installation Summary)** و دریافت تایید نهایی کاربر.
+5. **بررسی و نصب خودکار محیط Node.js v20 LTS و تمام وابستگی‌ها (`npm install`) بدون نیاز به نصب دستی** همراه با بیلد کامل پروداکشن و ایجاد باندل بهینه سرور.
 6. **سرویس پایدار سیستمد (`water.service`)** با ری‌استارت خودکار در صورت بروز خطای غیرمنتظره.
 7. **اسکریپت‌های مدیریت یکپارچه** (`start.sh`, `stop.sh`, `restart.sh`, `status.sh`, `uninstall.sh`).
 
@@ -188,8 +188,8 @@ During installation, the script will:
 - Install Node.js 20 LTS automatically.
 - Allocate swap memory if running on a low-RAM VPS.
 - Prompt for the desired port (default: `3000`).
-- Install dependencies and build production assets.
-- Create and enable the systemd daemon (`water-b2b.service`).
+- Install dependencies automatically (`npm install`) and build production assets.
+- Create and enable the systemd daemon (`water.service`).
 - Open the port in your Linux firewall (UFW / Firewalld).
 
 ---
@@ -199,22 +199,22 @@ During installation, the script will:
 ```bash
 # Check status
 ./status.sh
-# or: sudo systemctl status water-b2b
+# or: sudo systemctl status water
 
 # Restart server
 ./restart.sh
-# or: sudo systemctl restart water-b2b
+# or: sudo systemctl restart water
 
 # Stop server
 ./stop.sh
-# or: sudo systemctl stop water-b2b
+# or: sudo systemctl stop water
 
 # Start server
 ./start.sh
-# or: sudo systemctl start water-b2b
+# or: sudo systemctl start water
 
 # Live logs
-sudo journalctl -u water-b2b -f
+sudo journalctl -u water -f
 
 # Complete uninstall
 sudo ./uninstall.sh
