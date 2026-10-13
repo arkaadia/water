@@ -23,10 +23,17 @@ import {
   ArrowDownRight,
   ShoppingBag,
   Clock,
-  Sparkles
+  Sparkles,
+  PlusCircle
 } from 'lucide-react';
 
-export const AdminExecutiveDashboard: React.FC = () => {
+interface AdminExecutiveDashboardProps {
+  onOpenCreateProduct?: () => void;
+}
+
+export const AdminExecutiveDashboard: React.FC<AdminExecutiveDashboardProps> = ({
+  onOpenCreateProduct
+}) => {
   const {
     products,
     orders,
@@ -221,8 +228,20 @@ export const AdminExecutiveDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Time-Range Segmented Switcher */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl self-start sm:self-auto text-xs font-bold">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {onOpenCreateProduct && (
+            <button
+              type="button"
+              onClick={onOpenCreateProduct}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>تعریف و بارگذاری محصول جدید</span>
+            </button>
+          )}
+
+          {/* Time-Range Segmented Switcher */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl text-xs font-bold">
           <button
             onClick={() => setTimeRange('today')}
             className={`px-3 py-1.5 rounded-lg transition-colors ${
@@ -263,6 +282,7 @@ export const AdminExecutiveDashboard: React.FC = () => {
           >
             کل دوره مالی
           </button>
+        </div>
         </div>
       </div>
 

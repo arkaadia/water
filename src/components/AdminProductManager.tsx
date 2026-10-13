@@ -26,7 +26,15 @@ import {
   ExternalLink
 } from 'lucide-react';
 
-export const AdminProductManager: React.FC = () => {
+interface AdminProductManagerProps {
+  onOpenPricingEngine?: (productId?: string) => void;
+  onNavigateToStore?: () => void;
+}
+
+export const AdminProductManager: React.FC<AdminProductManagerProps> = ({
+  onOpenPricingEngine,
+  onNavigateToStore
+}) => {
   const {
     products,
     categories,
@@ -287,14 +295,38 @@ export const AdminProductManager: React.FC = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>افزودن محصول جدید به فروشگاه</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>افزودن محصول جدید به فروشگاه</span>
+            </button>
+
+            {onOpenPricingEngine && (
+              <button
+                type="button"
+                onClick={() => onOpenPricingEngine()}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Tag className="w-4 h-4 text-rose-600" />
+                <span>موتور قیمت‌گذاری و تخفیف پلکانی</span>
+              </button>
+            )}
+
+            {onNavigateToStore && (
+              <button
+                type="button"
+                onClick={onNavigateToStore}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Eye className="w-4 h-4 text-cyan-600" />
+                <span>مشاهده در فروشگاه عمومی</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filter & Search Bar */}
@@ -476,17 +508,29 @@ export const AdminProductManager: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(product)}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition text-[11px]"
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition text-[11px] cursor-pointer"
                             title="ویرایش مشخصات و عکس"
                           >
                             <Edit2 className="w-3 h-3" />
                             <span>ویرایش</span>
                           </button>
 
+                          {onOpenPricingEngine && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenPricingEngine(product.id)}
+                              className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition text-[11px] cursor-pointer"
+                              title="تنظیم نرخ‌ها در موتور قیمت‌گذاری"
+                            >
+                              <Tag className="w-3 h-3 text-rose-600" />
+                              <span>نرخ‌گذاری</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => setDeletingProductId(product.id)}
-                            className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-1 rounded-lg font-bold flex items-center gap-1 transition text-[11px]"
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition text-[11px] cursor-pointer"
                             title="حذف کالا از فروشگاه"
                           >
                             <Trash2 className="w-3 h-3" />

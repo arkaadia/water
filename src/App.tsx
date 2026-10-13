@@ -143,7 +143,9 @@ function MainAppContent() {
           <AccountingPortal onOpenInvoice={handleOpenInvoice} />
         )}
 
-        {currentView === 'admin-portal' && <AdminPortal />}
+        {currentView === 'admin-portal' && (
+          <AdminPortal onNavigateToStore={() => setCurrentView('store')} />
+        )}
 
         {currentView === 'regional-landing' && (
           <RegionalLandingPages onStartOrder={() => setCurrentView('dedicated-order')} />
