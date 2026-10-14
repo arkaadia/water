@@ -130,7 +130,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
       commissionPerBox: editingProduct.commissionPerBox,
       tiers: editingProduct.tiers
     });
-    alert(`نرخ‌های محصول ${editingProduct.name} با موفقیت به‌روزرسانی شد.`);
+    setImageUploadToast(`نرخ‌های محصول ${editingProduct.name} با موفقیت به‌روزرسانی شد.`);
+    setTimeout(() => setImageUploadToast(null), 3500);
     setEditingProduct(null);
   };
 
@@ -168,7 +169,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
       iconName: 'Package',
       description: 'دسته جدید تعریف شده توسط مدیر سیستم'
     });
-    alert(`دسته‌بندی "${newCatName}" با موفقیت ایجاد شد.`);
+    setImageUploadToast(`دسته‌بندی "${newCatName}" با موفقیت ایجاد شد.`);
+    setTimeout(() => setImageUploadToast(null), 3500);
     setNewCatName('');
     setNewCatSlug('');
   };
@@ -227,12 +229,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('لطفاً یک فایل تصویری معتبر انتخاب کنید.');
+      setImageUploadToast('لطفاً یک فایل تصویری معتبر انتخاب کنید.');
+      setTimeout(() => setImageUploadToast(null), 3000);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('حجم فایل تصویر نباید بیشتر از ۵ مگابایت باشد.');
+      setImageUploadToast('حجم فایل تصویر نباید بیشتر از ۵ مگابایت باشد.');
+      setTimeout(() => setImageUploadToast(null), 3000);
       return;
     }
 
@@ -269,10 +273,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
     setNewProductForm(prev => ({ ...prev, tiers: newTiers }));
   };
 
-  const handleSaveNewProduct = (e?: React.FormEvent) => {
+  const handleSaveNewProduct = (e?: React.FormEvent, transferToStore: boolean = true) => {
     if (e) e.preventDefault();
     if (!newProductForm.name?.trim()) {
-      alert('لطفاً نام محصول را وارد نمایید.');
+      setImageUploadToast('لطفاً نام محصول را وارد نمایید.');
+      setTimeout(() => setImageUploadToast(null), 3000);
       setCreateModalStep('info');
       return;
     }
@@ -314,8 +319,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
     };
 
     setIsCreateModalOpen(false);
-    setCreatedProductSuccess(savedProductRef);
     setHighlightedProductId(savedProductRef.id);
+
+    if (transferToStore && onNavigateToStore) {
+      onNavigateToStore();
+    } else {
+      setCreatedProductSuccess(savedProductRef);
+    }
   };
 
   return (
@@ -346,7 +356,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
               className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-950/40 border border-emerald-400/30 transition transform hover:-translate-y-0.5 cursor-pointer"
             >
               <PlusCircle className="w-4 h-4 text-emerald-100" />
-              <span>تعریف و بارگذاری محصول جدید</span>
+              <span>ایجاد محصول جدید</span>
             </button>
 
             {onNavigateToStore && (
@@ -1342,13 +1352,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={(e) => handleSaveNewProduct(e, true)}
                     className="flex-1 sm:flex-initial bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>ثبت محصول، تنظیم در موتور قیمت‌گذاری و انتشار در فروشگاه</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+                    <span>ذخیره و انتقال مستقیم به فروشگاه عمومی</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleSaveNewProduct(e, false)}
+                    className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span>ذخیره و ماندن در پنل مدیریت</span>
                   </button>
 
                   <button

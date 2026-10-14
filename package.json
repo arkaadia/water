@@ -9,8 +9,7 @@
     "build": "vite build && esbuild server.ts --platform=node --format=esm --packages=external --bundle --outfile=server.js",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit",
-    "test:sms": "tsx tests/sms.test.ts"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

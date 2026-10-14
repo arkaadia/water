@@ -315,15 +315,29 @@ fi
 cd "$INSTALL_DIR"
 
 # ------------------------------------------------------------------------------
-# 8. DEPENDENCY INSTALLATION (Auto npm install)
+# 8. DEPENDENCY INSTALLATION (Smart Check & Incremental Cache)
 # ------------------------------------------------------------------------------
-echo -e "${BLUE}• Installing project dependencies (npm install)...${NC}"
-if npm install; then
-  echo -e "${GREEN}✓ npm dependencies installed successfully.${NC}"
+echo -e "${BLUE}• Checking project dependencies and node_modules...${NC}"
+
+# Check if node_modules exists and core packages are present
+if [ -d "node_modules" ] && [ -d "node_modules/react" ] && [ -d "node_modules/express" ] && [ -d "node_modules/vite" ] && [ -d "node_modules/sms-typescript" ]; then
+  # Check if all top-level dependencies are satisfied
+  if npm ls --depth=0 &>/dev/null; then
+    echo -e "${GREEN}✓ All npm packages are already installed and satisfied. Skipping redundant reinstallation.${NC}"
+  else
+    echo -e "${YELLOW}• Some packages are missing. Installing only missing packages (preserving existing ones)...${NC}"
+    npm install --prefer-offline --no-audit --no-fund
+    echo -e "${GREEN}✓ Missing dependencies installed successfully.${NC}"
+  fi
 else
-  echo -e "${YELLOW}• Retrying npm install with --legacy-peer-deps...${NC}"
-  npm install --legacy-peer-deps
-  echo -e "${GREEN}✓ Dependencies installed successfully with legacy peer deps.${NC}"
+  echo -e "${BLUE}• Installing project dependencies (npm install with offline cache preference)...${NC}"
+  if npm install --prefer-offline --no-audit --no-fund; then
+    echo -e "${GREEN}✓ npm dependencies installed successfully.${NC}"
+  else
+    echo -e "${YELLOW}• Retrying npm install with --legacy-peer-deps...${NC}"
+    npm install --legacy-peer-deps --prefer-offline --no-audit --no-fund
+    echo -e "${GREEN}✓ Dependencies installed successfully with legacy peer deps.${NC}"
+  fi
 fi
 
 # ------------------------------------------------------------------------------

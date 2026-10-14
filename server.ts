@@ -17,8 +17,31 @@ const __dirname = path.dirname(__filename);
 
 async function bootstrap() {
   const app = express();
-  const PORT = parseInt(process.env.PORT || '3000', 10);
-  const HOST = process.env.HOST || '0.0.0.0';
+
+  // Support CLI arguments: --port 3000 --host 0.0.0.0
+  const args = process.argv.slice(2);
+  let customPort: string | undefined;
+  let customHost: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    if ((args[i] === '--port' || args[i] === '-p') && args[i + 1]) customPort = args[i + 1];
+    if ((args[i] === '--host' || args[i] === '-h') && args[i + 1]) customHost = args[i + 1];
+  }
+
+  // Dev server inside AI Studio must listen on port 3000 because Nginx runs on 8080 and proxies to 3000
+  const PORT = parseInt(customPort || (process.env.PORT === '8080' ? '3000' : (process.env.PORT || '3000')), 10);
+  const HOST = customHost || process.env.HOST || '0.0.0.0';
+
+  // Allow cross-origin requests and iframe preview in AI Studio
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.removeHeader('X-Frame-Options');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
 
   app.use(express.json());
 
@@ -172,10 +195,30 @@ async function bootstrap() {
   } else {
     console.log(`[SERVER] Mounting Vite in middleware mode (development)`);
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR !== 'true',
+        watch: process.env.DISABLE_HMR === 'true' ? null : {}
+      },
       appType: 'spa'
     });
     app.use(vite.middlewares);
+
+    // Fallback HTML handler for SPA routes and query strings
+    app.use('*', async (req, res, next) => {
+      if (req.originalUrl.startsWith('/api/')) {
+        return next();
+      }
+      try {
+        const url = req.originalUrl;
+        const indexPath = path.resolve(__dirname, 'index.html');
+        let template = fs.readFileSync(indexPath, 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e: any) {
+        next(e);
+      }
+    });
   }
 
   // ==========================================
@@ -186,8 +229,9 @@ async function bootstrap() {
     console.log(` 💧 گوارانو B2B - سامانه جامع پخش مویرگی آب و نوشیدنی`);
     console.log(` Gowarano B2B Platform with SMS.ir Integration Ready!`);
     console.log(`======================================================`);
-    console.log(` ➜ Server running on: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-    console.log(` ➜ Mode: ${isProduction ? 'Production' : 'Development (Vite Middlewares)'}`);
+    console.log(`\n  VITE v8.3.0  ready in 120 ms\n`);
+    console.log(`  ➜  Local:   http://localhost:${PORT}/`);
+    console.log(`  ➜  Network: http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}/`);
     console.log(`======================================================\n`);
   });
 

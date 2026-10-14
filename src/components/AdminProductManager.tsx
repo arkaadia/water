@@ -168,8 +168,8 @@ export const AdminProductManager: React.FC<AdminProductManagerProps> = ({
   };
 
   // Save product (either edit or new)
-  const handleSaveProduct = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveProduct = (e?: React.FormEvent, transferToStore: boolean = false) => {
+    if (e) e.preventDefault();
 
     if (!formState.name?.trim()) {
       showToast('نام محصول الزامی است.', 'error');
@@ -199,7 +199,7 @@ export const AdminProductManager: React.FC<AdminProductManagerProps> = ({
         isBestSeller: Boolean(formState.isBestSeller),
         isNewArrival: Boolean(formState.isNewArrival)
       });
-      showToast(`محصول جدید "${formState.name}" با موفقیت به فروشگاه اضافه شد.`, 'success');
+      showToast(`محصول جدید "${formState.name}" با موفقیت تعریف و به کاتالوگ فروشگاه عمومی اضافه شد.`, 'success');
     } else if (editingProduct) {
       updateProduct(editingProduct.id, {
         name: formState.name.trim(),
@@ -226,6 +226,10 @@ export const AdminProductManager: React.FC<AdminProductManagerProps> = ({
     }
 
     handleCloseModal();
+
+    if (transferToStore && onNavigateToStore) {
+      onNavigateToStore();
+    }
   };
 
   // Delete product confirmation
@@ -299,10 +303,10 @@ export const AdminProductManager: React.FC<AdminProductManagerProps> = ({
             <button
               type="button"
               onClick={handleOpenCreate}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/20 transition cursor-pointer transform hover:-translate-y-0.5"
             >
-              <Plus className="w-4 h-4" />
-              <span>افزودن محصول جدید به فروشگاه</span>
+              <Plus className="w-4 h-4 text-emerald-100" />
+              <span>ایجاد محصول جدید</span>
             </button>
 
             {onOpenPricingEngine && (
@@ -1053,22 +1057,35 @@ export const AdminProductManager: React.FC<AdminProductManagerProps> = ({
               )}
 
               {/* Footer Save & Cancel Buttons */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold transition"
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold transition text-xs order-2 sm:order-1"
                 >
                   انصراف
                 </button>
 
-                <button
-                  type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md transition"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{isCreatingNew ? 'افزودن قطعی به فروشگاه' : 'ذخیره تغییرات محصول'}</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto order-1 sm:order-2">
+                  {onNavigateToStore && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleSaveProduct(e, true)}
+                      className="flex-1 sm:flex-initial bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-teal-700 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+                      <span>{isCreatingNew ? 'ذخیره و انتقال مستقیم به فروشگاه عمومی' : 'ذخیره و مشاهده در فروشگاه'}</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{isCreatingNew ? 'ذخیره و ماندن در پنل مدیریت' : 'ذخیره تغییرات محصول'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
