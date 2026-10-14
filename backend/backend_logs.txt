@@ -1,0 +1,11 @@
+
+> gowarano-backend@1.0.0 start
+> ts-node src/main.ts
+
+[32m[Nest] 182568  - [39m10/14/2026, 8:56:41 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 182568  - [39m10/14/2026, 8:56:41 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +15ms[39m
+[32m[Nest] 182568  - [39m10/14/2026, 8:56:41 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/api/v1/health}:[39m[38;5;3m +160ms[39m
+[32m[Nest] 182568  - [39m10/14/2026, 8:56:41 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/health, GET} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 182568  - [39m10/14/2026, 8:56:41 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +83ms[39m
+Backend is running on: http://localhost:3001/api/v1
+Terminated

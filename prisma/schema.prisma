@@ -1,0 +1,38 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  displayName  String
+  passwordHash String?
+  status       String    @default("active") // active, inactive, suspended
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLogin    DateTime?
+  groups       Group[]   @relation("UserGroups")
+}
+
+model Group {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  status      String       @default("active") // active, inactive
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  users       User[]       @relation("UserGroups")
+  permissions Permission[] @relation("GroupPermissions")
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  code        String  @unique // e.g. users.view, products.manage
+  description String?
+  groups      Group[] @relation("GroupPermissions")
+}
