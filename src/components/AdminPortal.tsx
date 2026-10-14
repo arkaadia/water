@@ -5,7 +5,11 @@ import { AdminExecutiveDashboard } from './AdminExecutiveDashboard';
 import { SmsManagementPortal } from './SmsManagementPortal';
 import { AdminProductManager } from './AdminProductManager';
 import { AdminThemeSelector } from './AdminThemeSelector';
+import { UserManagementPanel } from './UserManagementPanel';
+import { GroupManagementPanel } from './GroupManagementPanel';
+import { LoginModal } from './LoginModal';
 import { PRODUCT_IMAGE_PRESETS } from '../data/productImagePresets';
+import { apiClient } from '../services/apiClient';
 import {
   Shield,
   BarChart3,
@@ -59,7 +63,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
     exportToCsv
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'themes' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs'>('products');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'themes' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs' | 'users' | 'groups'>('products');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLogin, setShowLogin] = useState(true);
+  const [permissions, setPermissions] = useState<string[]>([]);
 
   // Edit pricing modal/state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -74,6 +81,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
   const [imageUploadToast, setImageUploadToast] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    // Check auth on mount
+    apiClient('/auth/profile')
+      .then((data) => {
+        if (data && data.userId) {
+          setIsAuthenticated(true);
+          setShowLogin(false);
+          setPermissions(data.permissions || []);
+        }
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+        setShowLogin(true);
+      });
+  }, []);
+
+  if (showLogin) {
+    return <LoginModal onSuccess={() => {
+        setShowLogin(false);
+        window.location.reload(); // Quick refresh to grab profile properly
+    }} onClose={() => onNavigateToStore?.()} />;
+  }
+
+  const hasPermission = (code: string) => permissions.includes(code);
 
   const [newProductForm, setNewProductForm] = useState<Partial<Product>>({
     name: '',
@@ -433,6 +465,35 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
           <span>قالب و پوسته‌های فروشگاه (Themes)</span>
         </button>
 
+        {hasPermission('users.view') && (
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+            activeTab === 'users'
+              ? 'border-rose-600 text-rose-700 font-black'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>کاربران</span>
+        </button>
+        )}
+
+        {hasPermission('groups.manage') && (
+        <button
+          onClick={() => setActiveTab('groups')}
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+            activeTab === 'groups'
+              ? 'border-rose-600 text-rose-700 font-black'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Shield className="w-4 h-4" />
+          <span>گروه‌ها و دسترسی‌ها</span>
+        </button>
+        )}
+
+        {hasPermission('dashboard.view') && (
         <button
           onClick={() => setActiveTab('analytics')}
           className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
@@ -444,6 +505,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
           <BarChart3 className="w-4 h-4" />
           <span>داشبورد تحلیلی و گزارشات</span>
         </button>
+        )}
 
         <button
           onClick={() => setActiveTab('sms')}
@@ -524,6 +586,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
       {activeTab === 'themes' && (
         <AdminThemeSelector />
       )}
+
+      {activeTab === 'users' && <UserManagementPanel />}
+      {activeTab === 'groups' && <GroupManagementPanel />}
 
       {/* Tab 1: Executive Analytics & BI Dashboard */}
       {activeTab === 'analytics' && (
