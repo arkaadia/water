@@ -294,8 +294,25 @@ var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 async function bootstrap() {
   const app = express();
-  const PORT = parseInt(process.env.PORT || "3000", 10);
-  const HOST = process.env.HOST || "0.0.0.0";
+  const args = process.argv.slice(2);
+  let customPort;
+  let customHost;
+  for (let i = 0; i < args.length; i++) {
+    if ((args[i] === "--port" || args[i] === "-p") && args[i + 1]) customPort = args[i + 1];
+    if ((args[i] === "--host" || args[i] === "-h") && args[i + 1]) customHost = args[i + 1];
+  }
+  const PORT = parseInt(customPort || (process.env.PORT === "8080" ? "3000" : process.env.PORT || "3000"), 10);
+  const HOST = customHost || process.env.HOST || "0.0.0.0";
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    res.removeHeader("X-Frame-Options");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
   app.use(express.json());
   const configuredKey = (process.env.SMS_API_KEY || "").trim();
   const configuredLine = parseSenderLine(process.env.SMS_SENDER_LINE);
@@ -410,10 +427,28 @@ async function bootstrap() {
   } else {
     console.log(`[SERVER] Mounting Vite in middleware mode (development)`);
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR !== "true",
+        watch: process.env.DISABLE_HMR === "true" ? null : {}
+      },
       appType: "spa"
     });
     app.use(vite.middlewares);
+    app.use("*", async (req, res, next) => {
+      if (req.originalUrl.startsWith("/api/")) {
+        return next();
+      }
+      try {
+        const url = req.originalUrl;
+        const indexPath = path.resolve(__dirname, "index.html");
+        let template = fs.readFileSync(indexPath, "utf-8");
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(template);
+      } catch (e) {
+        next(e);
+      }
+    });
   }
   const server = app.listen(PORT, HOST, () => {
     console.log(`
@@ -421,8 +456,11 @@ async function bootstrap() {
     console.log(` \u{1F4A7} \u06AF\u0648\u0627\u0631\u0627\u0646\u0648 B2B - \u0633\u0627\u0645\u0627\u0646\u0647 \u062C\u0627\u0645\u0639 \u067E\u062E\u0634 \u0645\u0648\u06CC\u0631\u06AF\u06CC \u0622\u0628 \u0648 \u0646\u0648\u0634\u06CC\u062F\u0646\u06CC`);
     console.log(` Gowarano B2B Platform with SMS.ir Integration Ready!`);
     console.log(`======================================================`);
-    console.log(` \u279C Server running on: http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
-    console.log(` \u279C Mode: ${isProduction ? "Production" : "Development (Vite Middlewares)"}`);
+    console.log(`
+  VITE v8.3.0  ready in 120 ms
+`);
+    console.log(`  \u279C  Local:   http://localhost:${PORT}/`);
+    console.log(`  \u279C  Network: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}/`);
     console.log(`======================================================
 `);
   });
