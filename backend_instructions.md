@@ -42,7 +42,17 @@
 3. Build the backend: `cd backend && npm run build`
 4. Start the backend with PM2 or a similar process manager: `pm2 start dist/main.js --name "gowarano-backend"`
 
-## 8. Test Results
+## 8. Backup and Restore Procedure
+**Backup:**
+Run the following command to backup your database:
+`pg_dump -U gowarano_user -F c -b -v -f /path/to/backup/gowarano_db.backup gowarano_db`
+(It is recommended to run this via a scheduled cron job).
+
+**Restore:**
+To restore from a backup:
+`pg_restore -U gowarano_user -d gowarano_db -v /path/to/backup/gowarano_db.backup`
+
+## 9. Test Results
 - Backend Build: Passed.
 - TypeScript Checks: Passed for backend.
 - Prisma Schema Validation: Passed.

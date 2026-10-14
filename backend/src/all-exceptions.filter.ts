@@ -19,7 +19,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     // Log the error securely without sensitive data
-    console.error(`[Error] \${request.method} \${request.url} - Status: \${status}`);
+    console.error(`[Error] ${request.method} ${request.url} - Status: ${status}`);
 
     response.status(status).json({
       statusCode: status,

@@ -326,12 +326,12 @@ if [ -d "node_modules" ] && [ -d "node_modules/react" ] && [ -d "node_modules/ex
     echo -e "${GREEN}✓ All npm packages are already installed and satisfied. Skipping redundant reinstallation.${NC}"
   else
     echo -e "${YELLOW}• Some packages are missing. Installing only missing packages (preserving existing ones)...${NC}"
-    npm install --prefer-offline --no-audit --no-fund
+    npm install --prefer-offline --legacy-peer-deps --no-audit --no-fund
     echo -e "${GREEN}✓ Missing dependencies installed successfully.${NC}"
   fi
 else
   echo -e "${BLUE}• Installing project dependencies (npm install with offline cache preference)...${NC}"
-  if npm install --prefer-offline --no-audit --no-fund; then
+  if npm install --prefer-offline --legacy-peer-deps --no-audit --no-fund; then
     echo -e "${GREEN}✓ npm dependencies installed successfully.${NC}"
   else
     echo -e "${YELLOW}• Retrying npm install with --legacy-peer-deps...${NC}"
