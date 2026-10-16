@@ -8,16 +8,15 @@ generator client {
 }
 
 model User {
-  id                  String                   @id @default(uuid())
-  username            String                   @unique
-  displayName         String
-  passwordHash        String?
-  status              String                   @default("active") // active, inactive, suspended
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
-  lastLogin           DateTime?
-  groups              Group[]                  @relation("UserGroups")
-  permissionOverrides UserPermissionOverride[]
+  id           String    @id @default(uuid())
+  username     String    @unique
+  displayName  String
+  passwordHash String?
+  status       String    @default("active") // active, inactive, suspended
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLogin    DateTime?
+  groups       Group[]   @relation("UserGroups")
 }
 
 model Group {
@@ -32,30 +31,8 @@ model Group {
 }
 
 model Permission {
-  id            String                   @id @default(uuid())
-  code          String                   @unique // e.g. users.view, products.manage
-  description   String?
-  groups        Group[]                  @relation("GroupPermissions")
-  userOverrides UserPermissionOverride[]
-}
-
-model UserPermissionOverride {
-  id           String     @id @default(uuid())
-  userId       String
-  permissionId String
-  isGranted    Boolean // true = explicitly granted, false = explicitly denied
-  createdAt    DateTime   @default(now())
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, permissionId])
-}
-
-model AuditLog {
-  id        String   @id @default(uuid())
-  actorId   String? // The user ID who performed the action, if known
-  action    String // e.g. "USER_LOGIN", "GROUP_CREATED", "PERMISSION_GRANTED"
-  targetId  String? // The ID of the affected resource
-  metadata  Json? // Any additional non-sensitive context
-  createdAt DateTime @default(now())
+  id          String  @id @default(uuid())
+  code        String  @unique // e.g. users.view, products.manage
+  description String?
+  groups      Group[] @relation("GroupPermissions")
 }
