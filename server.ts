@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import 'dotenv/config';
 import { createServer as createViteServer } from 'vite';
 import {
@@ -245,6 +246,170 @@ async function bootstrap() {
     };
     INITIAL_GROUPS.push(newGroup);
     return res.status(201).json(newGroup);
+  });
+
+  // ==========================================
+  // Git Repository & Live Updates API (/api/v1/repo/*)
+  // ==========================================
+
+  /**
+   * Status Endpoint: GET /api/v1/repo/status
+   * Compares local git commit with latest remote origin/main without any mock data
+   */
+  app.get('/api/v1/repo/status', async (req, res) => {
+    try {
+      // 1. Current local HEAD commit
+      const localShaFull = execSync('git rev-parse HEAD', { cwd: __dirname }).toString().trim();
+      const localShaShort = localShaFull.substring(0, 7);
+      const localLogRaw = execSync('git log -1 --format="%h|%s|%an|%ad"', { cwd: __dirname }).toString().trim();
+      const [lSha, lMsg, lAuthor, lDate] = localLogRaw.split('|');
+
+      let remoteShaFull = localShaFull;
+      let hasUpdate = false;
+      let commitsBehind = 0;
+      let incomingCommits: Array<{ sha: string; message: string; author: string; date: string }> = [];
+      let incomingFiles: string[] = [];
+      let fetchError: string | null = null;
+
+      try {
+        // Fetch latest commit metadata from remote origin main
+        execSync('git fetch origin main', { cwd: __dirname, timeout: 12000 });
+        remoteShaFull = execSync('git rev-parse origin/main', { cwd: __dirname }).toString().trim();
+
+        if (remoteShaFull !== localShaFull) {
+          const countRaw = execSync(`git rev-list --count HEAD..origin/main`, { cwd: __dirname }).toString().trim();
+          commitsBehind = parseInt(countRaw, 10) || 0;
+          hasUpdate = commitsBehind > 0;
+
+          if (hasUpdate) {
+            const rawCommits = execSync(`git log HEAD..origin/main --format="%h|%s|%an|%ad"`, { cwd: __dirname }).toString().trim();
+            if (rawCommits) {
+              incomingCommits = rawCommits.split('\n').filter(Boolean).map(line => {
+                const [s, m, a, d] = line.split('|');
+                return { sha: s, message: m, author: a, date: d };
+              });
+            }
+
+            const rawFiles = execSync(`git diff --name-only HEAD..origin/main`, { cwd: __dirname }).toString().trim();
+            if (rawFiles) {
+              incomingFiles = rawFiles.split('\n').filter(Boolean);
+            }
+          }
+        }
+      } catch (err: any) {
+        fetchError = err.message;
+        console.warn('[REPO STATUS] git fetch error:', err.message);
+      }
+
+      return res.json({
+        currentCommit: {
+          sha: localShaShort,
+          fullSha: localShaFull,
+          message: lMsg || 'کامیت جاری سیستم',
+          author: lAuthor || 'arkaadia',
+          date: lDate || new Date().toLocaleString('fa-IR')
+        },
+        remoteCommit: {
+          sha: remoteShaFull.substring(0, 7),
+          fullSha: remoteShaFull
+        },
+        hasUpdate,
+        commitsBehind,
+        incomingCommits,
+        incomingFiles,
+        fetchError,
+        repoUrl: 'https://github.com/arkaadia/water',
+        branch: 'main',
+        checkedAt: new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      });
+    } catch (err: any) {
+      console.error('[REPO STATUS ERROR]', err);
+      return res.status(500).json({
+        error: `خطا در دریافت وضعیت مخزن گیت: ${err.message}`
+      });
+    }
+  });
+
+  /**
+   * Pull & Apply Endpoint: POST /api/v1/repo/pull
+   * Performs real git pull, dependency check, and outputs real progress logs
+   */
+  app.post('/api/v1/repo/pull', async (req, res) => {
+    const steps: Array<{ step: string; title: string; status: 'pending' | 'running' | 'completed' | 'failed'; output?: string }> = [];
+    try {
+      const prevShaFull = execSync('git rev-parse HEAD', { cwd: __dirname }).toString().trim();
+
+      // Step 1: git fetch
+      steps.push({ step: 'fetch', title: 'دریافت تغییرات از مخزن گیت‌هاب (git fetch origin main)', status: 'running' });
+      const fetchOut = execSync('git fetch origin main', { cwd: __dirname, timeout: 15000 }).toString();
+      steps[0].status = 'completed';
+      steps[0].output = fetchOut || 'تغییرات با موفقیت از origin دریافت شد.';
+
+      // Get applied commits list before pull
+      let appliedCommits: Array<{ sha: string; message: string; author: string; date: string }> = [];
+      try {
+        const rawCommits = execSync(`git log HEAD..origin/main --format="%h|%s|%an|%ad"`, { cwd: __dirname }).toString().trim();
+        if (rawCommits) {
+          appliedCommits = rawCommits.split('\n').filter(Boolean).map(line => {
+            const [s, m, a, d] = line.split('|');
+            return { sha: s, message: m, author: a, date: d };
+          });
+        }
+      } catch {}
+
+      // Step 2: git pull
+      steps.push({ step: 'pull', title: 'ادغام و اعمال کامیت‌ها روی سرور (git pull origin main)', status: 'running' });
+      let pullOut = '';
+      try {
+        pullOut = execSync('git pull origin main', { cwd: __dirname, timeout: 30000 }).toString();
+      } catch (pullErr: any) {
+        // Discard any local artifacts to cleanly rebase/merge
+        execSync('git stash', { cwd: __dirname });
+        pullOut = execSync('git pull origin main', { cwd: __dirname, timeout: 30000 }).toString();
+      }
+      steps[1].status = 'completed';
+      steps[1].output = pullOut;
+
+      const newShaFull = execSync('git rev-parse HEAD', { cwd: __dirname }).toString().trim();
+
+      // Step 3: Check changed files
+      let changedFiles: string[] = [];
+      try {
+        const diffFiles = execSync(`git diff --name-only ${prevShaFull} ${newShaFull}`, { cwd: __dirname }).toString().trim();
+        if (diffFiles) {
+          changedFiles = diffFiles.split('\n').filter(Boolean);
+        }
+      } catch {}
+
+      // Step 4: Dependencies check
+      const packageChanged = changedFiles.some(f => f.includes('package.json'));
+      if (packageChanged) {
+        steps.push({ step: 'deps', title: 'بروزرسانی وابستگی‌های پروژه (npm install)', status: 'running' });
+        const npmOut = execSync('npm install --no-audit', { cwd: __dirname, timeout: 60000 }).toString();
+        steps[steps.length - 1].status = 'completed';
+        steps[steps.length - 1].output = npmOut;
+      } else {
+        steps.push({ step: 'deps', title: 'بررسی وابستگی‌ها و بسته‌ها', status: 'completed', output: 'پکیج‌ها به‌روز هستند (نیازی به نصب مجدد npm نبود).' });
+      }
+
+      return res.json({
+        success: true,
+        previousSha: prevShaFull.substring(0, 7),
+        updatedSha: newShaFull.substring(0, 7),
+        newShaFull,
+        appliedCommits,
+        changedFiles,
+        steps,
+        message: 'به‌روزرسانی با موفقیت دریافت و در سیستم اعمال شد.'
+      });
+    } catch (err: any) {
+      console.error('[REPO PULL ERROR]', err);
+      return res.status(500).json({
+        success: false,
+        error: `خطا در دریافت و اعمال آپدیت: ${err.message}`,
+        steps
+      });
+    }
   });
 
   // ==========================================

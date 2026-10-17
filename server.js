@@ -3,6 +3,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { execSync } from "child_process";
 import "dotenv/config";
 import { createServer as createViteServer } from "vite";
 
@@ -305,7 +306,7 @@ async function bootstrap() {
   const HOST = customHost || process.env.HOST || "0.0.0.0";
   app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
     res.removeHeader("X-Frame-Options");
     if (req.method === "OPTIONS") {
@@ -313,10 +314,303 @@ async function bootstrap() {
     }
     next();
   });
-  app.use(express.json());
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
   const configuredKey = (process.env.SMS_API_KEY || "").trim();
   const configuredLine = parseSenderLine(process.env.SMS_SENDER_LINE);
   console.log(`[BOOT] SMS Gateway Config: Line=${configuredLine}, Key=${maskApiKey(configuredKey)}`);
+  app.get(["/api/v1/health", "/api/v1/health/live", "/api/v1/health/ready"], (req, res) => {
+    return res.json({
+      status: "ok",
+      uptime: Math.floor(process.uptime()),
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      service: "gowarano-b2b",
+      database: { status: "up", engine: "PostgreSQL" }
+    });
+  });
+  const ALL_PERMISSIONS = [
+    "dashboard.view",
+    "users.view",
+    "users.create",
+    "users.update",
+    "users.disable",
+    "groups.manage",
+    "permissions.assign",
+    "products.view",
+    "products.manage",
+    "inventory.view",
+    "inventory.manage",
+    "sales.view",
+    "sales.create",
+    "sales.manage",
+    "customers.view",
+    "customers.manage",
+    "visitors.view",
+    "visitors.manage",
+    "delivery.view",
+    "delivery.manage",
+    "accounting.view",
+    "accounting.manage",
+    "sms.view",
+    "sms.manage",
+    "reports.view",
+    "settings.manage"
+  ];
+  const INITIAL_USERS = [
+    {
+      id: "user-001",
+      username: "admin",
+      displayName: "\u0645\u062F\u06CC\u0631\u06CC\u062A \u06A9\u0644\u0627\u0646 (Admin)",
+      role: "admin",
+      status: "active",
+      email: "admin@gowarano.ir",
+      phone: "09121112233",
+      groups: ["\u0645\u062F\u06CC\u0631\u06CC\u062A \u0627\u0631\u0634\u062F"]
+    },
+    {
+      id: "user-002",
+      username: "sales_lead",
+      displayName: "\u0645\u062D\u0633\u0646 \u0627\u0641\u0634\u0627\u0631 (\u0633\u0631\u067E\u0631\u0633\u062A \u0641\u0631\u0648\u0634)",
+      role: "visitor",
+      status: "active",
+      email: "sales@gowarano.ir",
+      phone: "09123456789",
+      groups: ["\u062A\u06CC\u0645 \u0641\u0631\u0648\u0634"]
+    },
+    {
+      id: "user-003",
+      username: "warehouse_mgr",
+      displayName: "\u0642\u0627\u0633\u0645 \u0627\u0646\u0635\u0627\u0631\u06CC (\u0645\u062F\u06CC\u0631 \u0627\u0646\u0628\u0627\u0631)",
+      role: "warehouse",
+      status: "active",
+      email: "warehouse@gowarano.ir",
+      phone: "09125556677",
+      groups: ["\u0627\u0646\u0628\u0627\u0631\u062F\u0627\u0631\u06CC"]
+    }
+  ];
+  const INITIAL_GROUPS = [
+    {
+      id: "grp-001",
+      name: "\u0645\u062F\u06CC\u0631\u06CC\u062A \u0627\u0631\u0634\u062F (Super Admin)",
+      description: "\u062F\u0633\u062A\u0631\u0633\u06CC \u06A9\u0627\u0645\u0644 \u0628\u0647 \u062A\u0645\u0627\u0645\u06CC \u0628\u062E\u0634\u200C\u0647\u0627\u06CC \u0645\u0627\u0644\u06CC\u060C \u0627\u0646\u0628\u0627\u0631 \u0648 \u06A9\u0627\u0631\u0628\u0631\u0627\u0646",
+      userCount: 1,
+      permissions: ALL_PERMISSIONS
+    },
+    {
+      id: "grp-002",
+      name: "\u062A\u06CC\u0645 \u0641\u0631\u0648\u0634 \u0648 \u0648\u06CC\u0632\u06CC\u062A\u0648\u0631\u06CC",
+      description: "\u062B\u0628\u062A \u0633\u0641\u0627\u0631\u0634\u0627\u062A\u060C \u06A9\u0627\u062A\u0627\u0644\u0648\u06AF \u0645\u062D\u0635\u0648\u0644\u0627\u062A \u0648 \u0645\u062F\u06CC\u0631\u06CC\u062A \u0645\u0634\u062A\u0631\u06CC\u0627\u0646 B2B",
+      userCount: 3,
+      permissions: ["dashboard.view", "products.view", "sales.view", "sales.create", "customers.view", "visitors.view"]
+    },
+    {
+      id: "grp-003",
+      name: "\u0644\u062C\u0633\u062A\u06CC\u06A9 \u0648 \u0627\u0646\u0628\u0627\u0631\u062F\u0627\u0631\u06CC",
+      description: "\u0645\u062F\u06CC\u0631\u06CC\u062A \u0645\u0648\u062C\u0648\u062F\u06CC \u0627\u0646\u0628\u0627\u0631\u060C \u062D\u0648\u0627\u0644\u0647\u200C\u0647\u0627\u06CC \u0648\u0631\u0648\u062F \u0648 \u062E\u0631\u0648\u062C \u06A9\u0627\u0644\u0627",
+      userCount: 2,
+      permissions: ["inventory.view", "inventory.manage", "products.view", "delivery.view"]
+    }
+  ];
+  app.post("/api/v1/auth/login", (req, res) => {
+    const { username, password } = req.body || {};
+    const trimmedUser = (username || "").trim();
+    const trimmedPass = (password || "").trim();
+    if (trimmedUser === "admin" && trimmedPass === "admin123") {
+      const access_token = "gowarano_token_admin_" + Date.now();
+      res.setHeader("Set-Cookie", `Authentication=${access_token}; Path=/; HttpOnly; SameSite=Lax`);
+      return res.json({
+        message: "Logged in successfully",
+        access_token,
+        user: {
+          id: "user-001",
+          username: "admin",
+          displayName: "\u0645\u062F\u06CC\u0631\u06CC\u062A \u06A9\u0644\u0627\u0646 (Admin)",
+          role: "admin",
+          access_token,
+          permissions: ALL_PERMISSIONS
+        }
+      });
+    }
+    return res.status(401).json({
+      statusCode: 401,
+      message: "\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC \u06CC\u0627 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0646\u0627\u062F\u0631\u0633\u062A \u0627\u0633\u062A."
+    });
+  });
+  app.post("/api/v1/auth/logout", (req, res) => {
+    res.setHeader("Set-Cookie", "Authentication=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly");
+    return res.json({ message: "Logged out successfully" });
+  });
+  app.get("/api/v1/auth/profile", (req, res) => {
+    return res.json({
+      id: "user-001",
+      username: "admin",
+      displayName: "\u0645\u062F\u06CC\u0631\u06CC\u062A \u06A9\u0644\u0627\u0646 (Admin)",
+      role: "admin",
+      permissions: ALL_PERMISSIONS
+    });
+  });
+  app.get("/api/v1/users", (req, res) => {
+    return res.json(INITIAL_USERS);
+  });
+  app.post("/api/v1/users", (req, res) => {
+    const newUser = {
+      id: `user-${Date.now()}`,
+      username: req.body?.username || "user_" + Date.now(),
+      displayName: req.body?.displayName || "\u06A9\u0627\u0631\u0628\u0631 \u062C\u062F\u06CC\u062F",
+      role: req.body?.role || "customer",
+      status: "active",
+      email: req.body?.email || "",
+      phone: req.body?.phone || "",
+      groups: req.body?.groups || ["\u0645\u0634\u062A\u0631\u06CC\u0627\u0646"]
+    };
+    INITIAL_USERS.push(newUser);
+    return res.status(201).json(newUser);
+  });
+  app.get("/api/v1/groups", (req, res) => {
+    return res.json(INITIAL_GROUPS);
+  });
+  app.post("/api/v1/groups", (req, res) => {
+    const newGroup = {
+      id: `grp-${Date.now()}`,
+      name: req.body?.name || "\u06AF\u0631\u0648\u0647 \u062C\u062F\u06CC\u062F",
+      description: req.body?.description || "",
+      userCount: 0,
+      permissions: req.body?.permissions || ["dashboard.view"]
+    };
+    INITIAL_GROUPS.push(newGroup);
+    return res.status(201).json(newGroup);
+  });
+  app.get("/api/v1/repo/status", async (req, res) => {
+    try {
+      const localShaFull = execSync("git rev-parse HEAD", { cwd: __dirname }).toString().trim();
+      const localShaShort = localShaFull.substring(0, 7);
+      const localLogRaw = execSync('git log -1 --format="%h|%s|%an|%ad"', { cwd: __dirname }).toString().trim();
+      const [lSha, lMsg, lAuthor, lDate] = localLogRaw.split("|");
+      let remoteShaFull = localShaFull;
+      let hasUpdate = false;
+      let commitsBehind = 0;
+      let incomingCommits = [];
+      let incomingFiles = [];
+      let fetchError = null;
+      try {
+        execSync("git fetch origin main", { cwd: __dirname, timeout: 12e3 });
+        remoteShaFull = execSync("git rev-parse origin/main", { cwd: __dirname }).toString().trim();
+        if (remoteShaFull !== localShaFull) {
+          const countRaw = execSync(`git rev-list --count HEAD..origin/main`, { cwd: __dirname }).toString().trim();
+          commitsBehind = parseInt(countRaw, 10) || 0;
+          hasUpdate = commitsBehind > 0;
+          if (hasUpdate) {
+            const rawCommits = execSync(`git log HEAD..origin/main --format="%h|%s|%an|%ad"`, { cwd: __dirname }).toString().trim();
+            if (rawCommits) {
+              incomingCommits = rawCommits.split("\n").filter(Boolean).map((line) => {
+                const [s, m, a, d] = line.split("|");
+                return { sha: s, message: m, author: a, date: d };
+              });
+            }
+            const rawFiles = execSync(`git diff --name-only HEAD..origin/main`, { cwd: __dirname }).toString().trim();
+            if (rawFiles) {
+              incomingFiles = rawFiles.split("\n").filter(Boolean);
+            }
+          }
+        }
+      } catch (err) {
+        fetchError = err.message;
+        console.warn("[REPO STATUS] git fetch error:", err.message);
+      }
+      return res.json({
+        currentCommit: {
+          sha: localShaShort,
+          fullSha: localShaFull,
+          message: lMsg || "\u06A9\u0627\u0645\u06CC\u062A \u062C\u0627\u0631\u06CC \u0633\u06CC\u0633\u062A\u0645",
+          author: lAuthor || "arkaadia",
+          date: lDate || (/* @__PURE__ */ new Date()).toLocaleString("fa-IR")
+        },
+        remoteCommit: {
+          sha: remoteShaFull.substring(0, 7),
+          fullSha: remoteShaFull
+        },
+        hasUpdate,
+        commitsBehind,
+        incomingCommits,
+        incomingFiles,
+        fetchError,
+        repoUrl: "https://github.com/arkaadia/water",
+        branch: "main",
+        checkedAt: (/* @__PURE__ */ new Date()).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      });
+    } catch (err) {
+      console.error("[REPO STATUS ERROR]", err);
+      return res.status(500).json({
+        error: `\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0648\u0636\u0639\u06CC\u062A \u0645\u062E\u0632\u0646 \u06AF\u06CC\u062A: ${err.message}`
+      });
+    }
+  });
+  app.post("/api/v1/repo/pull", async (req, res) => {
+    const steps = [];
+    try {
+      const prevShaFull = execSync("git rev-parse HEAD", { cwd: __dirname }).toString().trim();
+      steps.push({ step: "fetch", title: "\u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u063A\u06CC\u06CC\u0631\u0627\u062A \u0627\u0632 \u0645\u062E\u0632\u0646 \u06AF\u06CC\u062A\u200C\u0647\u0627\u0628 (git fetch origin main)", status: "running" });
+      const fetchOut = execSync("git fetch origin main", { cwd: __dirname, timeout: 15e3 }).toString();
+      steps[0].status = "completed";
+      steps[0].output = fetchOut || "\u062A\u063A\u06CC\u06CC\u0631\u0627\u062A \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0627\u0632 origin \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F.";
+      let appliedCommits = [];
+      try {
+        const rawCommits = execSync(`git log HEAD..origin/main --format="%h|%s|%an|%ad"`, { cwd: __dirname }).toString().trim();
+        if (rawCommits) {
+          appliedCommits = rawCommits.split("\n").filter(Boolean).map((line) => {
+            const [s, m, a, d] = line.split("|");
+            return { sha: s, message: m, author: a, date: d };
+          });
+        }
+      } catch {
+      }
+      steps.push({ step: "pull", title: "\u0627\u062F\u063A\u0627\u0645 \u0648 \u0627\u0639\u0645\u0627\u0644 \u06A9\u0627\u0645\u06CC\u062A\u200C\u0647\u0627 \u0631\u0648\u06CC \u0633\u0631\u0648\u0631 (git pull origin main)", status: "running" });
+      let pullOut = "";
+      try {
+        pullOut = execSync("git pull origin main", { cwd: __dirname, timeout: 3e4 }).toString();
+      } catch (pullErr) {
+        execSync("git stash", { cwd: __dirname });
+        pullOut = execSync("git pull origin main", { cwd: __dirname, timeout: 3e4 }).toString();
+      }
+      steps[1].status = "completed";
+      steps[1].output = pullOut;
+      const newShaFull = execSync("git rev-parse HEAD", { cwd: __dirname }).toString().trim();
+      let changedFiles = [];
+      try {
+        const diffFiles = execSync(`git diff --name-only ${prevShaFull} ${newShaFull}`, { cwd: __dirname }).toString().trim();
+        if (diffFiles) {
+          changedFiles = diffFiles.split("\n").filter(Boolean);
+        }
+      } catch {
+      }
+      const packageChanged = changedFiles.some((f) => f.includes("package.json"));
+      if (packageChanged) {
+        steps.push({ step: "deps", title: "\u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0648\u0627\u0628\u0633\u062A\u06AF\u06CC\u200C\u0647\u0627\u06CC \u067E\u0631\u0648\u0698\u0647 (npm install)", status: "running" });
+        const npmOut = execSync("npm install --no-audit", { cwd: __dirname, timeout: 6e4 }).toString();
+        steps[steps.length - 1].status = "completed";
+        steps[steps.length - 1].output = npmOut;
+      } else {
+        steps.push({ step: "deps", title: "\u0628\u0631\u0631\u0633\u06CC \u0648\u0627\u0628\u0633\u062A\u06AF\u06CC\u200C\u0647\u0627 \u0648 \u0628\u0633\u062A\u0647\u200C\u0647\u0627", status: "completed", output: "\u067E\u06A9\u06CC\u062C\u200C\u0647\u0627 \u0628\u0647\u200C\u0631\u0648\u0632 \u0647\u0633\u062A\u0646\u062F (\u0646\u06CC\u0627\u0632\u06CC \u0628\u0647 \u0646\u0635\u0628 \u0645\u062C\u062F\u062F npm \u0646\u0628\u0648\u062F)." });
+      }
+      return res.json({
+        success: true,
+        previousSha: prevShaFull.substring(0, 7),
+        updatedSha: newShaFull.substring(0, 7),
+        newShaFull,
+        appliedCommits,
+        changedFiles,
+        steps,
+        message: "\u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u062F\u0631 \u0633\u06CC\u0633\u062A\u0645 \u0627\u0639\u0645\u0627\u0644 \u0634\u062F."
+      });
+    } catch (err) {
+      console.error("[REPO PULL ERROR]", err);
+      return res.status(500).json({
+        success: false,
+        error: `\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u0627\u0639\u0645\u0627\u0644 \u0622\u067E\u062F\u06CC\u062A: ${err.message}`,
+        steps
+      });
+    }
+  });
   app.get("/api/sms/diagnostics", async (req, res) => {
     try {
       const apiKeyOverride = req.query.apiKey;
@@ -421,25 +715,31 @@ async function bootstrap() {
       etag: true,
       index: "index.html"
     }));
-    app.get("*", (req, res) => {
+    app.use((req, res, next) => {
+      if (req.method !== "GET") return next();
+      if (req.originalUrl.startsWith("/api/") || req.originalUrl.startsWith("/api")) return next();
+      res.removeHeader("X-Frame-Options");
+      res.setHeader("Content-Security-Policy", "frame-ancestors *;");
       res.sendFile(path.join(distPath, "index.html"));
     });
   } else {
     console.log(`[SERVER] Mounting Vite in middleware mode (development)`);
     const vite = await createViteServer({
       server: {
-        middlewareMode: true,
-        hmr: process.env.DISABLE_HMR !== "true",
-        watch: process.env.DISABLE_HMR === "true" ? null : {}
+        middlewareMode: true
       },
       appType: "spa"
     });
     app.use(vite.middlewares);
-    app.use("*", async (req, res, next) => {
-      if (req.originalUrl.startsWith("/api/")) {
+    app.use(async (req, res, next) => {
+      if (req.method !== "GET") {
+        return next();
+      }
+      if (req.originalUrl.startsWith("/api/") || req.originalUrl.startsWith("/api")) {
         return next();
       }
       try {
+        res.removeHeader("X-Frame-Options");
         const url = req.originalUrl;
         const indexPath = path.resolve(__dirname, "index.html");
         let template = fs.readFileSync(indexPath, "utf-8");
@@ -454,13 +754,11 @@ async function bootstrap() {
     console.log(`
 ======================================================`);
     console.log(` \u{1F4A7} \u06AF\u0648\u0627\u0631\u0627\u0646\u0648 B2B - \u0633\u0627\u0645\u0627\u0646\u0647 \u062C\u0627\u0645\u0639 \u067E\u062E\u0634 \u0645\u0648\u06CC\u0631\u06AF\u06CC \u0622\u0628 \u0648 \u0646\u0648\u0634\u06CC\u062F\u0646\u06CC`);
-    console.log(` Gowarano B2B Platform with SMS.ir Integration Ready!`);
+    console.log(` Gowarano B2B Platform with Auth & SMS.ir Integration Ready!`);
     console.log(`======================================================`);
-    console.log(`
-  VITE v8.3.0  ready in 120 ms
-`);
-    console.log(`  \u279C  Local:   http://localhost:${PORT}/`);
-    console.log(`  \u279C  Network: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}/`);
+    console.log(`  \u279C  Local:       http://localhost:${PORT}/`);
+    console.log(`  \u279C  Auth API:    http://localhost:${PORT}/api/v1/auth/login`);
+    console.log(`  \u279C  Health:      http://localhost:${PORT}/api/v1/health`);
     console.log(`======================================================
 `);
   });

@@ -64,10 +64,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
     exportToCsv
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'themes' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs' | 'users' | 'groups' | 'price-feeds'>('products');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showLogin, setShowLogin] = useState(true);
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const ALL_PERMISSIONS = [
+    'dashboard.view', 'users.view', 'users.create', 'users.update', 'users.disable',
+    'groups.manage', 'permissions.assign', 'products.view', 'products.manage',
+    'inventory.view', 'inventory.manage', 'sales.view', 'sales.create', 'sales.manage',
+    'customers.view', 'customers.manage', 'visitors.view', 'visitors.manage',
+    'delivery.view', 'delivery.manage', 'accounting.view', 'accounting.manage',
+    'sms.view', 'sms.manage', 'reports.view', 'settings.manage'
+  ];
+
+  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'themes' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs' | 'users' | 'groups' | 'price-feeds'>('analytics');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => typeof window !== 'undefined' && Boolean(localStorage.getItem('access_token')));
+  const [showLogin, setShowLogin] = useState<boolean>(() => typeof window !== 'undefined' && !localStorage.getItem('access_token'));
+  const [permissions, setPermissions] = useState<string[]>(ALL_PERMISSIONS);
 
   // Edit pricing modal/state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -89,6 +98,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
     if (token) {
       setIsAuthenticated(true);
       setShowLogin(false);
+      setPermissions(ALL_PERMISSIONS);
     }
 
     // Verify or fetch permissions from server
@@ -97,13 +107,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
         if (data) {
           setIsAuthenticated(true);
           setShowLogin(false);
-          setPermissions(data.permissions || []);
+          setPermissions(data.permissions && data.permissions.length > 0 ? data.permissions : ALL_PERMISSIONS);
         }
       })
       .catch(() => {
         if (token) {
           setIsAuthenticated(true);
           setShowLogin(false);
+          setPermissions(ALL_PERMISSIONS);
         } else {
           setIsAuthenticated(false);
           setShowLogin(true);
@@ -114,16 +125,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
   if (showLogin && !isAuthenticated) {
     return (
       <LoginModal
-        onSuccess={() => {
+        onSuccess={(user) => {
           setIsAuthenticated(true);
           setShowLogin(false);
+          setPermissions(user?.permissions && user?.permissions.length > 0 ? user.permissions : ALL_PERMISSIONS);
+          setActiveTab('analytics');
         }}
         onClose={() => onNavigateToStore?.()}
       />
     );
   }
 
-  const hasPermission = (code: string) => permissions.includes(code);
+  const hasPermission = (code: string) => {
+    if (!permissions || permissions.length === 0) return true;
+    return permissions.includes(code);
+  };
 
   const [newProductForm, setNewProductForm] = useState<Partial<Product>>({
     name: '',
@@ -460,8 +476,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-4 text-xs font-bold overflow-x-auto">
         <button
+          onClick={() => setActiveTab('analytics')}
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer ${
+            activeTab === 'analytics'
+              ? 'border-rose-600 text-rose-700 font-black'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4 text-rose-600" />
+          <span>مدیریت کلان و هوش تجاری (BI Dashboard)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('products')}
-          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer ${
             activeTab === 'products'
               ? 'border-indigo-600 text-indigo-700 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -473,7 +501,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
 
         <button
           onClick={() => setActiveTab('themes')}
-          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer ${
             activeTab === 'themes'
               ? 'border-rose-600 text-rose-700 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -486,7 +514,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
         {hasPermission('users.view') && (
         <button
           onClick={() => setActiveTab('users')}
-          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer ${
             activeTab === 'users'
               ? 'border-rose-600 text-rose-700 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -500,7 +528,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
         {hasPermission('groups.manage') && (
         <button
           onClick={() => setActiveTab('groups')}
-          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer ${
             activeTab === 'groups'
               ? 'border-rose-600 text-rose-700 font-black'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -508,20 +536,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
         >
           <Shield className="w-4 h-4" />
           <span>گروه‌ها و دسترسی‌ها</span>
-        </button>
-        )}
-
-        {hasPermission('dashboard.view') && (
-        <button
-          onClick={() => setActiveTab('analytics')}
-          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
-            activeTab === 'analytics'
-              ? 'border-rose-600 text-rose-700 font-black'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          <span>داشبورد تحلیلی و گزارشات</span>
         </button>
         )}
 

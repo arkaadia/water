@@ -189,14 +189,14 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                         onNavigate('admin-portal');
                         onClose();
                       }}
-                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5"
+                      className="flex-1 bg-gradient-to-r from-rose-700 to-slate-900 hover:from-rose-800 hover:to-slate-800 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                     >
-                      <Shield className="w-3.5 h-3.5 text-rose-400" />
-                      پنل ادمین
+                      <Shield className="w-3.5 h-3.5 text-rose-300" />
+                      پنل مدیریت کلان
                     </button>
                     <button
                       onClick={handleLogout}
-                      className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5"
+                      className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <LogOut className="w-3.5 h-3.5" />
                       خروج از حساب
@@ -206,17 +206,17 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
               ) : (
                 <div className="space-y-2.5">
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    جهت دسترسی به پنل مدیریت کلان و ابزارهای پیشرفته وارد حساب کاربری خود شوید:
+                    جهت دسترسی به پنل مدیریت کلان، تصمیم‌گیری و تنظیمات با دسترسی مدیر وارد شوید:
                   </p>
                   <button
                     onClick={() => {
                       onClose();
                       onOpenLoginModal();
                     }}
-                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-1.5"
+                    className="w-full bg-gradient-to-r from-rose-600 via-indigo-600 to-cyan-600 hover:from-rose-700 hover:to-cyan-700 text-white text-xs font-black py-2.5 rounded-xl shadow-md shadow-rose-600/20 transition flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <LogIn className="w-4 h-4" />
-                    ورود به حساب کاربری
+                    ورود به پنل مدیریت کلان (admin / admin123)
                   </button>
                 </div>
               )}

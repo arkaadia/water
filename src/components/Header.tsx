@@ -7,7 +7,8 @@ import {
   User,
   Menu,
   PhoneCall,
-  MapPin
+  MapPin,
+  Shield
 } from 'lucide-react';
 import { RepoUpdateIndicator } from './RepoUpdateIndicator';
 import { HamburgerDrawer } from './HamburgerDrawer';
@@ -129,21 +130,26 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Blinking Beacon Repo Update Indicator */}
             <RepoUpdateIndicator variant="header" />
 
-            {/* Quick Login / User Account Button */}
+            {/* Direct Admin & Executive Dashboard Button */}
             <button
               onClick={() => {
                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
                 if (token) {
-                  setIsDrawerOpen(true);
+                  switchRole('admin');
+                  onNavigate('admin-portal');
                 } else {
                   setShowLoginModal(true);
                 }
               }}
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-cyan-200 bg-cyan-50/70 hover:bg-cyan-100/70 text-cyan-800 transition cursor-pointer"
-              title="ورود به حساب کاربری یا مشاهده وضعیت"
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition cursor-pointer ${
+                currentView === 'admin-portal'
+                  ? 'border-rose-400 bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                  : 'border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800'
+              }`}
+              title="ورود به پنل مدیریت کلان و هوش تجاری"
             >
-              <User className="w-4 h-4 text-cyan-700" />
-              <span className="hidden sm:inline">ورود / حساب</span>
+              <Shield className={`w-4 h-4 ${currentView === 'admin-portal' ? 'text-white' : 'text-rose-600'}`} />
+              <span className="hidden sm:inline">مدیریت کلان</span>
             </button>
 
             {/* Shopping Cart Button */}
