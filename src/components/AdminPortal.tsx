@@ -8,6 +8,7 @@ import { AdminThemeSelector } from './AdminThemeSelector';
 import { UserManagementPanel } from './UserManagementPanel';
 import { GroupManagementPanel } from './GroupManagementPanel';
 import { LoginModal } from './LoginModal';
+import { PriceFeeds } from './PriceFeeds';
 import { PRODUCT_IMAGE_PRESETS } from '../data/productImagePresets';
 import { apiClient } from '../services/apiClient';
 import {
@@ -63,7 +64,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
     exportToCsv
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'themes' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs' | 'users' | 'groups'>('products');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'themes' | 'sms' | 'pricing' | 'zones' | 'categories' | 'logs' | 'users' | 'groups' | 'price-feeds'>('products');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(true);
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -83,26 +84,43 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    // Check auth on mount
+    // Check if access token is already available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (token) {
+      setIsAuthenticated(true);
+      setShowLogin(false);
+    }
+
+    // Verify or fetch permissions from server
     apiClient('/auth/profile')
       .then((data) => {
-        if (data && data.userId) {
+        if (data) {
           setIsAuthenticated(true);
           setShowLogin(false);
           setPermissions(data.permissions || []);
         }
       })
       .catch(() => {
-        setIsAuthenticated(false);
-        setShowLogin(true);
+        if (token) {
+          setIsAuthenticated(true);
+          setShowLogin(false);
+        } else {
+          setIsAuthenticated(false);
+          setShowLogin(true);
+        }
       });
   }, []);
 
-  if (showLogin) {
-    return <LoginModal onSuccess={() => {
-        setShowLogin(false);
-        window.location.reload(); // Quick refresh to grab profile properly
-    }} onClose={() => onNavigateToStore?.()} />;
+  if (showLogin && !isAuthenticated) {
+    return (
+      <LoginModal
+        onSuccess={() => {
+          setIsAuthenticated(true);
+          setShowLogin(false);
+        }}
+        onClose={() => onNavigateToStore?.()}
+      />
+    );
   }
 
   const hasPermission = (code: string) => permissions.includes(code);
@@ -566,6 +584,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
           <History className="w-4 h-4" />
           <span>لاگ ممیزی و رویدادهای سیستم ({auditLogs.length})</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('price-feeds')}
+          className={`pb-3 border-b-2 flex items-center gap-1.5 transition whitespace-nowrap ${
+            activeTab === 'price-feeds'
+              ? 'border-rose-600 text-rose-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <ExternalLink className="w-4 h-4 text-emerald-600" />
+          <span>فید ترب / ایمالز / باسلام</span>
+        </button>
       </div>
 
       {/* Tab: Store Products & Catalog Management */}
@@ -589,6 +619,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigateToStore }) =
 
       {activeTab === 'users' && <UserManagementPanel />}
       {activeTab === 'groups' && <GroupManagementPanel />}
+      {activeTab === 'price-feeds' && <PriceFeeds />}
 
       {/* Tab 1: Executive Analytics & BI Dashboard */}
       {activeTab === 'analytics' && (

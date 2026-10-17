@@ -182,7 +182,7 @@ async function bootstrap() {
 
     return res.status(401).json({
       statusCode: 401,
-      message: 'نام کاربری یا رمز عبور اشتباه است (نام کاربری: admin / رمز: admin123)'
+      message: 'نام کاربری یا رمز عبور نادرست است.'
     });
   });
 

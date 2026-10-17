@@ -208,10 +208,6 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                   <p className="text-xs text-slate-600 leading-relaxed">
                     جهت دسترسی به پنل مدیریت کلان و ابزارهای پیشرفته وارد حساب کاربری خود شوید:
                   </p>
-                  <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-2.5 text-[11px] text-blue-900 flex items-center justify-between font-mono">
-                    <span>نام کاربری: <strong>admin</strong></span>
-                    <span>رمز عبور: <strong>admin123</strong></span>
-                  </div>
                   <button
                     onClick={() => {
                       onClose();
@@ -220,7 +216,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                     className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-1.5"
                   >
                     <LogIn className="w-4 h-4" />
-                    ورود به حساب کاربری (Admin)
+                    ورود به حساب کاربری
                   </button>
                 </div>
               )}
