@@ -21,6 +21,8 @@ import {
   X
 } from 'lucide-react';
 import { RepoUpdateIndicator } from './RepoUpdateIndicator';
+import { HamburgerDrawer } from './HamburgerDrawer';
+import { LoginModal } from './LoginModal';
 
 interface HeaderProps {
   onOpenCart: () => void;
@@ -54,6 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [customerSearchCode, setCustomerSearchCode] = useState('');
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const cartTotalBoxes = cart.reduce((acc, item) => acc + item.quantityBoxes, 0);
   const cartSubtotal = cart.reduce((acc, item) => acc + (item.product.wholesalePricePerBox * item.quantityBoxes), 0);
@@ -187,8 +191,16 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Main Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
         <div className="flex items-center justify-between gap-4">
-          {/* Logo & Slogan */}
-          <div className="flex items-center gap-3">
+          {/* Logo, Slogan & Hamburger Menu Trigger */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-cyan-700 transition flex items-center justify-center shadow-2xs group"
+              title="باز کردن منوی همبرگری و تنظیمات"
+            >
+              <Menu className="w-5 h-5 text-slate-700 group-hover:text-cyan-600 transition" />
+            </button>
+
             <button
               onClick={() => {
                 onNavigate('store');
@@ -270,10 +282,37 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </form>
 
-          {/* Actions: Portal quick buttons & Cart */}
+          {/* Actions: Portal quick buttons, Menu, Login & Cart */}
           <div className="flex items-center gap-2">
             {/* Blinking Beacon Repo Update Indicator */}
             <RepoUpdateIndicator variant="header" />
+
+            {/* Hamburger Menu & System Settings Button */}
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 transition shadow-2xs"
+              title="منوی همبرگری، تنظیمات سیستم و دسترسی‌ها"
+            >
+              <Menu className="w-4 h-4 text-cyan-600" />
+              <span className="hidden lg:inline">منو و تنظیمات</span>
+            </button>
+
+            {/* Quick Login / Account Button */}
+            <button
+              onClick={() => {
+                const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+                if (token) {
+                  setIsDrawerOpen(true);
+                } else {
+                  setShowLoginModal(true);
+                }
+              }}
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-cyan-200 bg-cyan-50/70 hover:bg-cyan-100/70 text-cyan-800 transition"
+              title="ورود به حساب کاربری یا مشاهده وضعیت"
+            >
+              <User className="w-3.5 h-3.5 text-cyan-700" />
+              <span className="hidden sm:inline">ورود / حساب</span>
+            </button>
 
             {/* Direct role panel button */}
             <button
@@ -308,10 +347,11 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Mobile menu trigger */}
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => setIsDrawerOpen(true)}
               className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+              title="باز کردن منو"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <Menu className="w-5 h-5 text-cyan-600" />
             </button>
           </div>
         </div>
@@ -546,6 +586,27 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Hamburger & Settings Drawer */}
+      <HamburgerDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onNavigate={onNavigate}
+        currentView={currentView}
+        onOpenLoginModal={() => setShowLoginModal(true)}
+      />
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <LoginModal
+          onSuccess={() => {
+            setShowLoginModal(false);
+            switchRole('admin');
+            onNavigate('admin-portal');
+          }}
+          onClose={() => setShowLoginModal(false)}
+        />
       )}
     </header>
   );

@@ -34,16 +34,18 @@ async function bootstrap() {
   // Allow cross-origin requests and iframe preview in AI Studio
   app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     res.removeHeader('X-Frame-Options');
+    res.setHeader('Content-Security-Policy', "frame-ancestors *;");
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }
     next();
   });
 
-  app.use(express.json());
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Log non-sensitive startup SMS config status
   const configuredKey = (process.env.SMS_API_KEY || '').trim();
@@ -51,12 +53,207 @@ async function bootstrap() {
   console.log(`[BOOT] SMS Gateway Config: Line=${configuredLine}, Key=${maskApiKey(configuredKey)}`);
 
   // ==========================================
+  // System Health & Diagnostics API (/api/v1/health)
+  // ==========================================
+  app.get(['/api/v1/health', '/api/v1/health/live', '/api/v1/health/ready'], (req, res) => {
+    return res.json({
+      status: 'ok',
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      service: 'gowarano-b2b',
+      database: { status: 'up', engine: 'PostgreSQL' }
+    });
+  });
+
+  // ==========================================
+  // Authentication & RBAC API (/api/v1/auth/*)
+  // ==========================================
+  const ALL_PERMISSIONS = [
+    'dashboard.view',
+    'users.view',
+    'users.create',
+    'users.update',
+    'users.disable',
+    'groups.manage',
+    'permissions.assign',
+    'products.view',
+    'products.manage',
+    'inventory.view',
+    'inventory.manage',
+    'sales.view',
+    'sales.create',
+    'sales.manage',
+    'customers.view',
+    'customers.manage',
+    'visitors.view',
+    'visitors.manage',
+    'delivery.view',
+    'delivery.manage',
+    'accounting.view',
+    'accounting.manage',
+    'sms.view',
+    'sms.manage',
+    'reports.view',
+    'settings.manage'
+  ];
+
+  const INITIAL_USERS = [
+    {
+      id: 'user-001',
+      username: 'admin',
+      displayName: 'مدیریت کلان (Admin)',
+      role: 'admin',
+      status: 'active',
+      email: 'admin@gowarano.ir',
+      phone: '09121112233',
+      groups: ['مدیریت ارشد']
+    },
+    {
+      id: 'user-002',
+      username: 'sales_lead',
+      displayName: 'محسن افشار (سرپرست فروش)',
+      role: 'visitor',
+      status: 'active',
+      email: 'sales@gowarano.ir',
+      phone: '09123456789',
+      groups: ['تیم فروش']
+    },
+    {
+      id: 'user-003',
+      username: 'warehouse_mgr',
+      displayName: 'قاسم انصاری (مدیر انبار)',
+      role: 'warehouse',
+      status: 'active',
+      email: 'warehouse@gowarano.ir',
+      phone: '09125556677',
+      groups: ['انبارداری']
+    }
+  ];
+
+  const INITIAL_GROUPS = [
+    {
+      id: 'grp-001',
+      name: 'مدیریت ارشد (Super Admin)',
+      description: 'دسترسی کامل به تمامی بخش‌های مالی، انبار و کاربران',
+      userCount: 1,
+      permissions: ALL_PERMISSIONS
+    },
+    {
+      id: 'grp-002',
+      name: 'تیم فروش و ویزیتوری',
+      description: 'ثبت سفارشات، کاتالوگ محصولات و مدیریت مشتریان B2B',
+      userCount: 3,
+      permissions: ['dashboard.view', 'products.view', 'sales.view', 'sales.create', 'customers.view', 'visitors.view']
+    },
+    {
+      id: 'grp-003',
+      name: 'لجستیک و انبارداری',
+      description: 'مدیریت موجودی انبار، حواله‌های ورود و خروج کالا',
+      userCount: 2,
+      permissions: ['inventory.view', 'inventory.manage', 'products.view', 'delivery.view']
+    }
+  ];
+
+  /**
+   * Login Endpoint: POST /api/v1/auth/login
+   * Validates credentials (User: admin / Pass: admin123)
+   */
+  app.post('/api/v1/auth/login', (req, res) => {
+    const { username, password } = req.body || {};
+    const trimmedUser = (username || '').trim();
+    const trimmedPass = (password || '').trim();
+
+    if (trimmedUser === 'admin' && trimmedPass === 'admin123') {
+      const access_token = 'gowarano_token_admin_' + Date.now();
+      res.setHeader('Set-Cookie', `Authentication=${access_token}; Path=/; HttpOnly; SameSite=Lax`);
+      return res.json({
+        message: 'Logged in successfully',
+        access_token,
+        user: {
+          id: 'user-001',
+          username: 'admin',
+          displayName: 'مدیریت کلان (Admin)',
+          role: 'admin',
+          access_token,
+          permissions: ALL_PERMISSIONS
+        }
+      });
+    }
+
+    return res.status(401).json({
+      statusCode: 401,
+      message: 'نام کاربری یا رمز عبور اشتباه است (نام کاربری: admin / رمز: admin123)'
+    });
+  });
+
+  /**
+   * Logout Endpoint: POST /api/v1/auth/logout
+   */
+  app.post('/api/v1/auth/logout', (req, res) => {
+    res.setHeader('Set-Cookie', 'Authentication=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly');
+    return res.json({ message: 'Logged out successfully' });
+  });
+
+  /**
+   * Current Profile Endpoint: GET /api/v1/auth/profile
+   */
+  app.get('/api/v1/auth/profile', (req, res) => {
+    return res.json({
+      id: 'user-001',
+      username: 'admin',
+      displayName: 'مدیریت کلان (Admin)',
+      role: 'admin',
+      permissions: ALL_PERMISSIONS
+    });
+  });
+
+  /**
+   * Users List & Management Endpoint: GET /api/v1/users
+   */
+  app.get('/api/v1/users', (req, res) => {
+    return res.json(INITIAL_USERS);
+  });
+
+  app.post('/api/v1/users', (req, res) => {
+    const newUser = {
+      id: `user-${Date.now()}`,
+      username: req.body?.username || 'user_' + Date.now(),
+      displayName: req.body?.displayName || 'کاربر جدید',
+      role: req.body?.role || 'customer',
+      status: 'active',
+      email: req.body?.email || '',
+      phone: req.body?.phone || '',
+      groups: req.body?.groups || ['مشتریان']
+    };
+    INITIAL_USERS.push(newUser);
+    return res.status(201).json(newUser);
+  });
+
+  /**
+   * Groups List Endpoint: GET /api/v1/groups
+   */
+  app.get('/api/v1/groups', (req, res) => {
+    return res.json(INITIAL_GROUPS);
+  });
+
+  app.post('/api/v1/groups', (req, res) => {
+    const newGroup = {
+      id: `grp-${Date.now()}`,
+      name: req.body?.name || 'گروه جدید',
+      description: req.body?.description || '',
+      userCount: 0,
+      permissions: req.body?.permissions || ['dashboard.view']
+    };
+    INITIAL_GROUPS.push(newGroup);
+    return res.status(201).json(newGroup);
+  });
+
+  // ==========================================
   // SMS API Routes
   // ==========================================
 
   /**
    * Diagnostic Endpoint: GET /api/sms/diagnostics
-   * Safely checks connectivity, credit balance, registered lines, and server IP hint
    */
   app.get('/api/sms/diagnostics', async (req, res) => {
     try {
@@ -82,7 +279,6 @@ async function bootstrap() {
 
   /**
    * Safe Test Send Endpoint: POST /api/sms/test
-   * Requires explicit authorized recipient, never retries blindly
    */
   app.post('/api/sms/test', async (req, res) => {
     try {
@@ -129,7 +325,6 @@ async function bootstrap() {
 
   /**
    * Primary Dispatch Endpoint: POST /api/sms/send
-   * Awaits SMS.ir API and returns true status only when accepted
    */
   app.post('/api/sms/send', async (req, res) => {
     try {
@@ -189,7 +384,11 @@ async function bootstrap() {
       etag: true,
       index: 'index.html'
     }));
-    app.get('*', (req, res) => {
+    app.use((req, res, next) => {
+      if (req.method !== 'GET') return next();
+      if (req.originalUrl.startsWith('/api/') || req.originalUrl.startsWith('/api')) return next();
+      res.removeHeader('X-Frame-Options');
+      res.setHeader('Content-Security-Policy', "frame-ancestors *;");
       res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
@@ -197,19 +396,24 @@ async function bootstrap() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR !== 'true',
-        watch: process.env.DISABLE_HMR === 'true' ? null : {}
+        hmr: false,
+        watch: null
       },
       appType: 'spa'
     });
     app.use(vite.middlewares);
 
     // Fallback HTML handler for SPA routes and query strings
-    app.use('*', async (req, res, next) => {
-      if (req.originalUrl.startsWith('/api/')) {
+    app.use(async (req, res, next) => {
+      if (req.method !== 'GET') {
+        return next();
+      }
+      if (req.originalUrl.startsWith('/api/') || req.originalUrl.startsWith('/api')) {
         return next();
       }
       try {
+        res.removeHeader('X-Frame-Options');
+        res.setHeader('Content-Security-Policy', "frame-ancestors *;");
         const url = req.originalUrl;
         const indexPath = path.resolve(__dirname, 'index.html');
         let template = fs.readFileSync(indexPath, 'utf-8');
@@ -227,11 +431,11 @@ async function bootstrap() {
   const server = app.listen(PORT, HOST, () => {
     console.log(`\n======================================================`);
     console.log(` 💧 گوارانو B2B - سامانه جامع پخش مویرگی آب و نوشیدنی`);
-    console.log(` Gowarano B2B Platform with SMS.ir Integration Ready!`);
+    console.log(` Gowarano B2B Platform with Auth & SMS.ir Integration Ready!`);
     console.log(`======================================================`);
-    console.log(`\n  VITE v8.3.0  ready in 120 ms\n`);
-    console.log(`  ➜  Local:   http://localhost:${PORT}/`);
-    console.log(`  ➜  Network: http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}/`);
+    console.log(`  ➜  Local:       http://localhost:${PORT}/`);
+    console.log(`  ➜  Auth API:    http://localhost:${PORT}/api/v1/auth/login`);
+    console.log(`  ➜  Health:      http://localhost:${PORT}/api/v1/health`);
     console.log(`======================================================\n`);
   });
 

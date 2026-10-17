@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function bootstrap() {
   const username = process.argv[2] || 'admin';
-  const password = process.argv[3] || 'Gowarano!Admin2026';
+  const password = process.argv[3] || 'admin123';
 
   console.log(`Checking if admin user '${username}' exists...`);
 
