@@ -19,7 +19,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     // Log the error securely without sensitive data
+<<<<<<< HEAD
     console.error(`[Error] ${request.method} ${request.url} - Status: ${status}`);
+=======
+    console.error(`[Error] ${request.method} ${request.url} - Status: ${status}`, exception);
+>>>>>>> origin/feat/setup-nestjs-postgres-prisma-16265149769609236843
 
     response.status(status).json({
       statusCode: status,

@@ -5,11 +5,19 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import helmet from 'helmet';
 import * as express from 'express';
+<<<<<<< HEAD
+=======
+import * as cookieParser from 'cookie-parser';
+>>>>>>> origin/feat/setup-nestjs-postgres-prisma-16265149769609236843
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.use(helmet());
+<<<<<<< HEAD
+=======
+  app.use(cookieParser());
+>>>>>>> origin/feat/setup-nestjs-postgres-prisma-16265149769609236843
   app.use(express.json({ limit: '10mb' }));
 
   app.setGlobalPrefix('api/v1');
