@@ -37,7 +37,6 @@ async function bootstrap() {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     res.removeHeader('X-Frame-Options');
-    res.setHeader('Content-Security-Policy', "frame-ancestors *;");
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }
@@ -396,8 +395,6 @@ async function bootstrap() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: false,
-        watch: null
       },
       appType: 'spa'
     });
@@ -413,7 +410,6 @@ async function bootstrap() {
       }
       try {
         res.removeHeader('X-Frame-Options');
-        res.setHeader('Content-Security-Policy', "frame-ancestors *;");
         const url = req.originalUrl;
         const indexPath = path.resolve(__dirname, 'index.html');
         let template = fs.readFileSync(indexPath, 'utf-8');
